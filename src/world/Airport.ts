@@ -9,10 +9,10 @@ const PERIOD = 46;
 
 const AIRPORT = geoToLocal({latitude: 22.2496, longitude: 91.8133});
 
-/** Rectangular keep-clear zone around the runway and apron; shared with infill. */
+/** Rectangular keep-clear zone: runway, apron and the low approach corridor. */
 export function inAirportDistrict(x: number, z: number, margin = 0): boolean {
   return Math.abs(x - AIRPORT.x) < 72 + margin
-    && z > AIRPORT.z - 70 - margin && z < AIRPORT.z + 210 + margin;
+    && z > AIRPORT.z - 240 - margin && z < AIRPORT.z + 210 + margin;
 }
 
 function buildPlane(accent: number): THREE.Group {
@@ -38,11 +38,13 @@ function buildPlane(accent: number): THREE.Group {
   return group;
 }
 
+interface Key { p: number; v: THREE.Vector3; }
+
 /** Shah Amanat Airport: a runway with airliners that take off and land on a loop. */
 export class Airport {
   readonly object = new THREE.Group();
   private readonly planes: THREE.Group[] = [];
-  private readonly curves: THREE.CatmullRomCurve3[] = [];
+  private readonly keys: Key[];
   private readonly baseY: number;
   private readonly height: HeightProvider;
   private time = 0;
@@ -84,37 +86,47 @@ export class Airport {
       mesh.receiveShadow = true; this.object.add(mesh);
     }
 
-    // Flight loop: apron -> takeoff -> wide circuit -> approach -> touchdown -> apron.
-    const b = this.baseY, g = gy;
-    const path = [
-      new THREE.Vector3(x0 + 34, b, z0 + 8),
-      new THREE.Vector3(x0, b, z0 + 6),
-      new THREE.Vector3(x0, b, z0 + RUNWAY_LENGTH),
-      new THREE.Vector3(x0 + 130, g + 46, z0 + RUNWAY_LENGTH + 150),
-      new THREE.Vector3(x0 + 340, g + 100, z0 + 560),
-      new THREE.Vector3(x0 + 150, g + 78, z0 - 250),
-      new THREE.Vector3(x0, g + 44, z0 - 420),
-      new THREE.Vector3(x0, b, z0),
-      new THREE.Vector3(x0, b, z0 + RUNWAY_LENGTH * .55),
+    // Keyframed loop — a spline here overshot and pinned the plane low, so it
+    // clipped through buildings. Keys hold a monotonic climb and descent.
+    const b = this.baseY, g = gy, L = RUNWAY_LENGTH;
+    this.keys = [
+      {p: 0.00, v: new THREE.Vector3(x0 + 34, b, z0 + 8)},        // gate
+      {p: 0.06, v: new THREE.Vector3(x0, b, z0)},                 // threshold
+      {p: 0.24, v: new THREE.Vector3(x0, b, z0 + L)},             // rotation
+      {p: 0.34, v: new THREE.Vector3(x0 + 95, g + 90, z0 + L + 110)}, // climb out
+      {p: 0.54, v: new THREE.Vector3(x0 + 320, g + 118, z0 + 560)},   // cruise
+      {p: 0.74, v: new THREE.Vector3(x0 + 140, g + 100, z0 - 240)},   // downwind
+      {p: 0.87, v: new THREE.Vector3(x0, g + 54, z0 - 460)},          // final
+      {p: 0.94, v: new THREE.Vector3(x0, b, z0)},                     // touchdown
+      {p: 1.00, v: new THREE.Vector3(x0 + 34, b, z0 + 8)},            // back to gate
     ];
     for (let i = 0; i < 2; i++) {
       const plane = buildPlane(i === 0 ? 0xd6452f : 0x2f6fb0);
       this.object.add(plane); this.planes.push(plane);
-      this.curves.push(new THREE.CatmullRomCurve3(path, true, 'catmullrom', .5));
     }
+  }
+
+  private sample(p: number, out: THREE.Vector3): void {
+    p = ((p % 1) + 1) % 1;
+    let i = 0;
+    while (i < this.keys.length - 2 && this.keys[i + 1]!.p <= p) i++;
+    const a = this.keys[i]!, c = this.keys[i + 1]!;
+    const t = (p - a.p) / ((c.p - a.p) || 1);
+    out.copy(a.v).lerp(c.v, t * t * (3 - 2 * t));
   }
 
   update(delta: number): void {
     this.time += delta;
-    const point = new THREE.Vector3(), tangent = new THREE.Vector3();
+    const point = new THREE.Vector3(), ahead = new THREE.Vector3(), tangent = new THREE.Vector3();
     this.planes.forEach((plane, i) => {
-      const p = (this.time / PERIOD + i * .5) % 1;
-      this.curves[i]!.getPointAt(p, point);
-      this.curves[i]!.getTangentAt(p, tangent);
-      // Never let the airliner sink below the runway or the terrain.
+      const p = this.time / PERIOD + i * .5;
+      this.sample(p, point);
+      this.sample(p + .006, ahead);
+      tangent.copy(ahead).sub(point);
+      // A floor only guards the runway; it is never low enough to skim buildings.
       point.y = Math.max(this.baseY, this.height(point.x, point.z) + 2);
       plane.position.copy(point);
-      const pitch = Math.asin(THREE.MathUtils.clamp(tangent.y, -1, 1));
+      const pitch = Math.asin(THREE.MathUtils.clamp(tangent.y / Math.max(1e-3, tangent.length()), -1, 1));
       plane.rotation.set(-pitch, Math.atan2(tangent.x, tangent.z), 0);
     });
   }
