@@ -30,14 +30,21 @@ const DECK_STEP = 1.4;
  * Wraps the ground surface with elevated decks. A deck only supports a mover
  * that is already at or above it (having climbed the flush ramp), so ground
  * traffic can still pass underneath — unless the deck is at step height.
+ * `platforms` are solid low surfaces (e.g. the port apron) that always support.
  */
-export function createSurfaceProvider(ground: HeightProvider, decks: DeckSource): HeightProvider {
+export function createSurfaceProvider(
+  ground: HeightProvider,
+  decks: DeckSource,
+  platforms?: (x: number, z: number) => number | null,
+): HeightProvider {
   return (x, z, y) => {
     const g = ground(x, z);
     if (y === undefined) return g;
+    let h = g;
     const deck = decks.deckTop(x, z);
-    if (deck === null) return g;
-    if (deck <= g + DECK_STEP || y >= deck - DECK_STEP) return Math.max(g, deck);
-    return g;
+    if (deck !== null && (deck <= g + DECK_STEP || y >= deck - DECK_STEP)) h = Math.max(h, deck);
+    const platform = platforms ? platforms(x, z) : null;
+    if (platform !== null) h = Math.max(h, platform);
+    return h;
   };
 }

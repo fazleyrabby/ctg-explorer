@@ -8,3 +8,11 @@ export function inPortDistrict(x:number,z:number,margin=0):boolean{
  const dx=x-PORT.x,dz=z-PORT.z,px=dx*Math.cos(PORT.yaw)-dz*Math.sin(PORT.yaw),pz=dx*Math.sin(PORT.yaw)+dz*Math.cos(PORT.yaw);
  return px>-128-margin&&px<8+margin&&Math.abs(pz)<77+margin;
 }
+
+/** Height of the walkable terminal apron, or null off it. */
+export const PORT_APRON_TOP=4.3;
+export function portSurfaceHeight(x:number,z:number):number|null{
+ const dx=x-PORT.x,dz=z-PORT.z,px=dx*Math.cos(PORT.yaw)-dz*Math.sin(PORT.yaw),pz=dx*Math.sin(PORT.yaw)+dz*Math.cos(PORT.yaw);
+ if(px>-125.5&&px<-14.5&&pz>-69&&pz<69)return PORT_APRON_TOP;
+ return null;
+}

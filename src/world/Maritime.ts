@@ -58,9 +58,11 @@ export class Maritime {
   this.object.name='ChittagongPortAndMarineTraffic';
   const port=new THREE.Group();port.position.set(PORT.x,0,PORT.z);port.rotation.y=PORT.yaw;this.object.add(port);
   const b=builder(),ground=4.3;
-  b.box(111,.8,138,0x8c9fa2,-70,ground-.4,0);b.box(6,3.8,136,0xd8d2b7,-16,ground-1.9,0);
+  // The quay wall top sits just above the apron top; equal tops z-fought along
+  // the whole quay and flickered as the camera moved.
+  b.box(111,.8,138,0x8c9fa2,-70,ground-.4,0);b.box(6,4.3,136,0xd8d2b7,-16,ground-1.85,0);
   // Dock bumpers, bollards, safety stripes and container handling lanes.
-  for(let z=-62;z<=62;z+=8){b.box(1.4,1.5,2,0x344953,-12.6,2,z);b.add(new THREE.CylinderGeometry(.4,.6,.8,8),0x455560,-17,4.7,z);b.box(.8,.04,3.8,z%16?0xf0ca56:0x384953,-19,4.74,z);}
+  for(let z=-62;z<=62;z+=8){b.box(1.4,1.5,2,0x344953,-12.6,2,z);b.add(new THREE.CylinderGeometry(.4,.6,.8,8),0x455560,-17,4.7,z);b.box(.8,.04,3.8,z%16?0xf0ca56:0x384953,-19,4.5,z);}
   for(const x of [-26,-50,-78,-111])b.box(.25,.05,126,0xf1da91,x,ground+.45,0);
   // Tiered stacks share one raised origin — never build the same box twice.
   for(let row=0;row<6;row++)for(let col=0;col<4;col++)for(let level=0;level<2+(row%3===0?1:0);level++)container(b,-39-col*8,ground+level*3,-49+row*18,row+col+level,5,3,12);

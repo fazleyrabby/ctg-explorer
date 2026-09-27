@@ -10,6 +10,7 @@ import { Maritime } from "@/world/Maritime";
 import { Airport } from "@/world/Airport";
 import { ProminentPlaces } from "@/world/ProminentPlaces";
 import { shoreDistance } from "@/geography/CityGeography";
+import { portSurfaceHeight } from "@/geography/PortLayout";
 import { Terrain } from "@/world/Terrain";
 import { DistrictLandmarks } from "@/world/DistrictLandmarks";
 import { Roads } from "@/world/Roads";
@@ -164,8 +165,9 @@ export class Game {
     const terrain = new Terrain(this.getHeight);
     const roads = await Roads.load(this.getHeight);
     const structures = await CityStructures.load(this.getHeight);
-    // Elevated decks become a walkable/rideable surface on top of the ground.
-    this.getHeight = createSurfaceProvider(this.getHeight, structures);
+    // Elevated decks become a walkable/rideable surface on top of the ground;
+    // the port apron is a solid low platform so the player stands on the quay.
+    this.getHeight = createSurfaceProvider(this.getHeight, structures, portSurfaceHeight);
     this.controller = new PlayerController(this.player, this.input, this.cameraRig, this.getHeight);
     this.cityLife = new CityLife(roads.roads, this.getHeight);
     this.atmosphere = new Atmosphere();
