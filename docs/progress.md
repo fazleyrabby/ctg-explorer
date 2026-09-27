@@ -2,6 +2,10 @@
 
 Updated 2026-09-27. The compact miniature has 27 destinations and 48 connected road segments; distances are deliberately compressed.
 
+## Design priority
+
+Keep exploration compact, following the Jalan Malaysia concept. Preserve the real-world relative order, general directions and main connections of places and roads; compress distances, simplify bends and omit minor streets. Do not enlarge the playable area to reproduce a one-to-one map. Check authored connections for geographic plausibility and visual clearance rather than exact surveying accuracy.
+
 ## Available now
 
 - Walk, run, jump, summon and ride a car or bicycle; original character retained.
@@ -10,6 +14,7 @@ Updated 2026-09-27. The compact miniature has 27 destinations and 48 connected r
 - Chattogram Railway Station: reserved compact rail parcel, two tracks with sleepers and buffer stops, covered platforms, ticket hall, benches and two animated three-car trains with dwell pauses. Layout is compressed and shifted to the nearest clear parcel; station anchor reference: https://mapcarta.com/W1075277515.
 - Shah Amanat Airport: runway, terminal and planes following a flight loop.
 - Existing authored districts: Agrabad, GEC, New Market, Chawkbazar, CRB, Foy’s Lake, Nasirabad, Khulshi, Pahartali, Khatunganj and CMCH.
+- Rounded island outline within the existing bounds, a flat navigable interior, no rectangular terrain skirt, and a distant ocean-to-sky fade. Overview framing fits the whole island.
 - Animated coastal water, subtle river water, vegetation, clouds, pedestrians and traffic.
 - Overview mouse exploration and WASD flight; minimap, large map, travel, search, routing, quests and History Notebook.
 - Day/night cycle, subtle synthesized city/sea ambience and mute controls.

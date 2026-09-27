@@ -1,4 +1,4 @@
-import { geoToLocal } from '@/geography/Projection';
+import { geoToLocal, localWorldBounds } from '@/geography/Projection';
 export type MapPoint = [number, number];
 export function project(latitude:number,longitude:number):MapPoint {const p=geoToLocal({latitude,longitude});return [p.x,p.z];}
 export const CITY_STOPS = [
@@ -30,8 +30,19 @@ export function segmentDistance(x:number,z:number,a:MapPoint,b:MapPoint):number 
   const dx=b[0]-a[0],dz=b[1]-a[1],t=Math.max(0,Math.min(1,((x-a[0])*dx+(z-a[1])*dz)/(dx*dx+dz*dz||1)));
   return Math.hypot(x-a[0]-t*dx,z-a[1]-t*dz);
 }
+/** Rounded miniature boundary; physical terrain and all scenery share this shore. */
+export function islandDistance(x:number,z:number):number {
+  const b=localWorldBounds(),cx=(b.minX+b.maxX)/2,cz=(b.minZ+b.maxZ)/2;
+  const radius=360;
+  const qx=Math.abs(x-cx)-((b.maxX-b.minX)/2-radius-12);
+  const qz=Math.abs(z-cz)-((b.maxZ-b.minZ)/2-radius-12);
+  const rounded=-(Math.hypot(Math.max(qx,0),Math.max(qz,0))+Math.min(Math.max(qx,qz),0)-radius);
+  // Small coves soften long edges without bending any interior streets.
+  const coves=9+5*Math.sin(z*.012+x*.003)+4*Math.sin(x*.019-z*.005);
+  return rounded-coves;
+}
 /** Positive on land, negative in water. */
 export function shoreDistance(x:number,z:number):number {
   const river=Math.min(...RIVER.slice(1).map((b,i)=>segmentDistance(x,z,RIVER[i]!,b)))-13;
-  return Math.min(x-coastX(z),river);
+  return Math.min(x-coastX(z),river,islandDistance(x,z));
 }

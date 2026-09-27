@@ -19,7 +19,7 @@ export class Atmosphere {
   private readonly bounds=localWorldBounds();
   constructor(){
     this.object.name='SkyAndSea';const b=this.bounds;
-    const sea=new THREE.PlaneGeometry(b.maxX-b.minX+2400,b.maxZ-b.minZ+2400,160,160);sea.rotateX(-Math.PI/2);
+    const sea=new THREE.PlaneGeometry(b.maxX-b.minX+24000,b.maxZ-b.minZ+24000,160,160);sea.rotateX(-Math.PI/2);
     const size=256, shoreData=new Uint8Array(size*size*4);
     for(let z=0;z<size;z++)for(let x=0;x<size;x++){
       const wx=b.minX+x/(size-1)*(b.maxX-b.minX), wz=b.minZ+z/(size-1)*(b.maxZ-b.minZ), i=(z*size+x)*4;
@@ -62,10 +62,11 @@ export class Atmosphere {
       }
     `;
     this.water=new THREE.ShaderMaterial({
-      uniforms:{time:{value:0},daylight:{value:1},shoreline:{value:shoreline},mapBounds:{value:new THREE.Vector4(b.minX,b.minZ,b.maxX-b.minX,b.maxZ-b.minZ)}},
+      uniforms:{horizonColor:{value:new THREE.Color(0x60b5e8)},time:{value:0},daylight:{value:1},shoreline:{value:shoreline},mapBounds:{value:new THREE.Vector4(b.minX,b.minZ,b.maxX-b.minX,b.maxZ-b.minZ)}},
       vertexShader:waves+`varying vec3 world; void main(){vec4 p=modelMatrix*vec4(position,1.);p.y+=oceanRoll(p.xz)*oceanStrength(p.xz)*.55+swell(p.xz)*mix(.12,1.,oceanStrength(p.xz))*(1.-smoothstep(120.,450.,distance(cameraPosition,p.xyz)));world=p.xyz;gl_Position=projectionMatrix*viewMatrix*p;}`,
       fragmentShader:waves+`
         uniform float daylight;
+        uniform vec3 horizonColor;
         varying vec3 world;
         void main(){
           vec2 p=world.xz; float e=.18;
@@ -102,7 +103,8 @@ export class Atmosphere {
           // Broken, travelling whitecaps appear only in the larger ocean area.
           float cap=smoothstep(1.52,1.87,oceanRoll(p))*smoothstep(.53,.76,noise(p*.065+vec2(-time*.19,time*.07)));
           color=mix(color,vec3(.55,.79,.83),cap*ocean*.38);
-          gl_FragColor=vec4(color*daylight,1.);
+          float haze=smoothstep(1600.,7500.,length(world.xz-cameraPosition.xz));
+          gl_FragColor=vec4(mix(color*daylight,horizonColor,haze),1.);
           #include <tonemapping_fragment>
           #include <colorspace_fragment>
         }`,
@@ -121,7 +123,8 @@ export class Atmosphere {
     this.sun.position.set(b.minX-180,460,b.minZ-340);this.object.add(this.sun);
     this.update(0,false);
   }
-  update(delta:number,night:boolean,focus?:THREE.Vector3,overview=true):void {
+  update(delta:number,night:boolean,focus?:THREE.Vector3,overview=true,skyColor?:THREE.Color):void {
+    if(skyColor)this.water.uniforms.horizonColor!.value.copy(skyColor);
     this.time+=delta;this.water.uniforms.time!.value=this.time;this.water.uniforms.daylight!.value=night?.38:1;
     this.sun.visible=!night;
     if(focus&&!overview)this.sun.position.set(focus.x-600,focus.y+125,focus.z+120);

@@ -547,3 +547,13 @@ Keep all 44 ambient vehicle bodies and motion paths. Replace individual wheel me
 Laldighi and the railway station choose nearby clear parcels against source roads and buildings before scenery generation. All procedural infill, shops, palms and utility poles share these exclusions. Laldighi uses low coping and a perimeter grove; on-foot collision prevents entering its water.
 
 The user requested Chattogram Railway Station, tracks and trains. The station anchor uses OpenStreetMap way 1075277515 (22.33389, 91.83006); the miniature parcel and short parallel tracks are authored, not a surveyed railway alignment. Two merged three-car trains shuttle with smooth acceleration and dwell pauses, without extra audio. Static station geometry is merged; scenery reserves the entire rail corridor.
+
+
+## ADR-0026 — Compact exploration with recognizable geography
+
+The owner explicitly confirmed that this should not be a one-to-one OSM or Google Maps clone. Keep the current compact surface area and short exploration routes, inspired by Jalan Malaysia. Retain landmark order, broad directions, water crossings and meaningful main-road connections. Distances, curves, intermediate roads and local parcel placements may be simplified. Do not expand the map merely to match source geometry. Road audits should flag misleading relationships or overlaps, not intentional compression; wholesale replacement of authored links is not required.
+
+
+## ADR-0027 — Rounded island presentation, flat city geometry
+
+The owner approved a rounded island-like outline instead of a spherical world. Keep the existing coordinate projection and playable bounds. A shared signed shoreline rounds the outer corners and adds subtle coves; terrain, water shading, movement and scenery clearance use the same function. Remove the box-shaped terrain skirt. Extend decorative ocean beyond the walkable area and fade it to the current sky color at the horizon. Reframe the orbit camera to fit the island. Roads, flyovers, tracks and landmark coordinates are unchanged; edge infill is omitted where the new shore needs clearance. This decorative island outline is not a claim that Chattogram is geographically an island.

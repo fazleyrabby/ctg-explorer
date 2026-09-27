@@ -409,7 +409,7 @@ export class Game {
     this.maritime?.update(delta);
     this.airport?.update(delta);
     this.railway?.update(delta);
-    this.atmosphere?.update(delta, this.timeOfDay.isNight, this.player.position, this.mode === "overview");
+    this.atmosphere?.update(delta, this.timeOfDay.isNight, this.player.position, this.mode === "overview", this.sceneManager.scene.background instanceof THREE.Color?this.sceneManager.scene.background:undefined);
     
     this.pedestrians?.update(delta);
     this.traffic?.update(delta, this.timeOfDay.isNight);

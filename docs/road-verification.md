@@ -1,6 +1,6 @@
 # Road verification — 2026-09-27
 
-Verdict: a connected, map-derived miniature, not a geographically faithful road network.
+Verdict: a connected, map-derived miniature. The owner confirmed that compact exploration takes priority over exact map geometry. Verification should focus on recognizable relative geography and meaningful road connections, not real distances or every street.
 
 ## Verified against checked-in source data
 
@@ -19,11 +19,15 @@ https://cda.gov.bd/pages/static-pages/6922df70933eb65569e22006
 
 This supports the broad corridor, not every access ramp or the surface alignment used in the game. Live OSM way pages could not be retrieved during this audit; current node-by-node agreement and current ramp access remain unverified.
 
-## Recommended correction order
+## Agreed design direction
 
-1. Replace the authored Bahaddarhat–Shah Amanat Bridge approach and airport access with selected real surface-road geometry.
-2. Separate surface roads from elevated alignments instead of duplicating the flyover path at ground level.
-3. Use real junctions for the nine authored links; keep compression and omit minor streets to retain compact exploration.
-4. Preserve road direction and road level in routing if realistic driving is desired.
+Keep the current compact footprint, inspired by Jalan Malaysia’s selective exploration model. Do not expand the world or reproduce every OSM/Google Maps road to improve accuracy.
 
-No road geometry was changed during this verification.
+- Preserve the general direction and relative order of important places, coast, river, port, airport and city districts.
+- Preserve the main connections and recognizable junction relationships. Shorten, straighten or simplify intermediate roads as needed.
+- Keep bridges crossing the appropriate waterway and flyovers connecting the appropriate corridors; avoid misleading shortcuts that suggest unrelated districts are adjacent.
+- Allow nearby landmark placement adjustments for clear, attractive parcels. Avoid roads, water, buildings and props overlapping.
+- Omit minor streets, redundant carriageways and long empty stretches. Exact widths, distances, ramp profiles and traffic restrictions are not requirements for this exploration world.
+- Use real-map evidence to check relationships; synthetic geometry alone is not a defect. Review the authored New Bridge approach, airport access and district links against these criteria before deciding whether they need changes.
+
+The earlier recommendation to replace every authored connector with source geometry is superseded by this clarification. No road geometry or world bounds were changed during this verification or clarification.

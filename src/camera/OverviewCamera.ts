@@ -17,7 +17,7 @@ export class OverviewCamera {
   readonly camera: THREE.PerspectiveCamera;
 
   yaw = Math.PI * 0.75;
-  pitch = 0.85;
+  pitch = 1.02;
   distance = 1050;
 
   private readonly focus = new THREE.Vector3();
@@ -32,7 +32,7 @@ export class OverviewCamera {
     this.camera = new THREE.PerspectiveCamera(50, aspect, 10, 10000);
     const b = localWorldBounds();
     this.focus.set((b.minX+b.maxX)/2, 0, (b.minZ+b.maxZ)/2);
-    this.distance = Math.max(b.maxX-b.minX,b.maxZ-b.minZ)*1.4;
+    this.distance = Math.max(b.maxX-b.minX,b.maxZ-b.minZ)*1.45;
     this.focus.y = this.getHeight(this.focus.x, this.focus.z);
   }
 

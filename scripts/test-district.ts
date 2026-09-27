@@ -143,3 +143,8 @@ for(let t=0;t<100;t+=.25)assert(Math.abs(trainPosition(t))<=48,'Train stays insi
 for(const b of neighborhood.buildings)assert(!inRailway(b.x,b.z,b.radius),'Buildings clear railway');
 for(const p of fabric.plots)assert(!inRailway(p.x,p.z,p.radius),'Infill clears railway');
 railway.update(12);console.log('PASS: railway reservation, station geometry and bounded train movement.',railwayLayout);
+
+// The rounded presentation must not turn the map into curved terrain or wet roads.
+for(const x of [bounds.minX,bounds.maxX])for(const z of [bounds.minZ,bounds.maxZ])assert(shoreDistance(x,z)<0,'Rectangular map corners are submerged');
+for(const road of roads)for(let i=1;i<road.points.length;i++){const a=road.points[i-1]!,b=road.points[i]!;const steps=Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1])/2);for(let j=0;j<=steps;j++){const t=j/steps;assert(shoreDistance(a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t)>=0,'Entire road centerline stays dry after island shaping');}}
+console.log('PASS: rounded island corners underwater; continuous road centerlines remain dry.');

@@ -24,14 +24,6 @@ export class Terrain {
     // Broad ground does not receive shadow-map acne at overview distances.
     top.receiveShadow=false;
     this.object=new THREE.Group();this.object.name='Terrain';this.object.add(top);
-    // A visible diorama edge makes the playable boundary understandable.
-    const skirt=new THREE.BoxGeometry(width,14,depth);
-    const edge=new THREE.MeshStandardMaterial({color:0xc28c52,roughness:1});
-    const hiddenTop=new THREE.MeshBasicMaterial({visible:false});
-    // BoxGeometry group 2 is its top: omit it rather than layering nearly
-    // coincident ground surfaces, which loses depth precision in overview.
-    const base=new THREE.Mesh(skirt,[edge,edge,hiddenTop,edge,edge,edge]);
-    base.position.set((b.minX+b.maxX)/2,-5,(b.minZ+b.maxZ)/2);
-    this.object.add(base);
+    // The shared shoreline slopes below the sea; no rectangular box skirt.
   }
 }
