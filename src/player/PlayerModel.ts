@@ -159,8 +159,10 @@ export class PlayerModel implements PlayerAvatar {
     // Vertical bob peaks twice per stride.
     this.upper.position.y = Math.abs(Math.sin(phase)) * 0.05 * intensity;
 
-    // Idle breathing when nearly still.
+    // Idle breathing when nearly still; feet stay planted.
     if (intensity < 0.05) {
+      this.leftLeg.rotation.x = 0;
+      this.rightLeg.rotation.x = 0;
       const breath = Math.sin(phase * 0.4) * 0.012;
       this.upper.position.y = breath;
       this.leftArm.rotation.x = Math.sin(phase * 0.4) * 0.05;

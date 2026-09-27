@@ -103,6 +103,9 @@ export class GltfAvatar implements PlayerAvatar {
 
     let bob = Math.abs(Math.sin(phase)) * 0.05 * intensity;
     if (intensity < 0.05) {
+      // Standing still: plant the feet, keep only a faint arm/shoulder breath.
+      this.leftLeg.rotation.x = 0;
+      this.rightLeg.rotation.x = 0;
       bob = Math.sin(phase * 0.4) * 0.012;
       this.leftArm.rotation.x = Math.sin(phase * 0.4) * 0.05;
       this.rightArm.rotation.x = -Math.sin(phase * 0.4) * 0.05;

@@ -55,7 +55,7 @@ export class Input {
 
   private onKeyDown = (e: KeyboardEvent): void => {
     if (isEditable(e.target)) return;
-    if (e.code === "Space" || e.code.startsWith("Arrow")) {
+    if (e.code === "Space" || e.code === "Tab" || e.code.startsWith("Arrow")) {
       e.preventDefault();
     }
     if (!this.keys.has(e.code)) this.justPressed.add(e.code);

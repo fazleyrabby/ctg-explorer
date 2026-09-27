@@ -6,7 +6,7 @@ import { SceneManager } from "@/core/SceneManager";
 import { Atmosphere } from "@/world/Atmosphere";
 import { CityStructures } from "@/world/CityStructures";
 import { CityLife } from "@/world/CityLife";
-import { shoreDistance, coastX } from "@/geography/CityGeography";
+import { shoreDistance } from "@/geography/CityGeography";
 import { Terrain } from "@/world/Terrain";
 import { DistrictLandmarks } from "@/world/DistrictLandmarks";
 import { Roads } from "@/world/Roads";
@@ -427,7 +427,9 @@ export class Game {
     );
     this.sceneManager.setSky(this.timeOfDay.skyColor);
     this.hud.setClock(this.timeOfDay.label);
-    this.audio.updateAmbience(delta, this.timeOfDay.isNight, Math.max(0, 1 - Math.abs(this.player.position.x - coastX(this.player.position.z)) / 120), this.mode === "overview");
+    // Ocean bed rises within ~140 units of the coast or the Karnaphuli river.
+    const coastal = Math.max(0, Math.min(1, 1 - shoreDistance(this.player.position.x, this.player.position.z) / 140));
+    this.audio.updateAmbience(delta, this.timeOfDay.isNight, coastal, this.mode === "overview");
     this.updateSun(this.timeOfDay.getLightDirection());
 
     if (this.postfx) {
@@ -446,7 +448,7 @@ export class Game {
 
     if (this.input.wasPressed("KeyC")) vehicles.summon("car", this.player);
     if (this.input.wasPressed("KeyB")) vehicles.summon("bicycle", this.player);
-    if (this.input.wasPressed("KeyM")) this.minimap?.toggle();
+    if (this.input.wasPressed("Tab")) this.minimap?.toggle();
     if (this.input.wasPressed("KeyN")) this.minimap?.toggleLarge();
     if (this.input.wasPressed("KeyH")) this.notebook?.toggle();
     if (this.input.wasPressed("Slash")) this.searchBox?.toggle();
@@ -457,7 +459,7 @@ export class Game {
     if (this.input.wasPressed("KeyL")) void this.startAtDeviceLocation();
     if (this.input.wasPressed("KeyG")) this.toggleGpsTracking();
     if (this.input.wasPressed("KeyP")) this.postfx?.toggle();
-    if (this.input.wasPressed("KeyU")) this.audio.toggleMute();
+    if (this.input.wasPressed("KeyM")) this.audio.toggleMute();
     if (this.input.wasPressed("KeyO")) this.toggleOverview();
     if (this.input.wasPressed("KeyF")) {
       vehicles.toggleMount(this.player);
