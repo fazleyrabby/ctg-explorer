@@ -50,8 +50,10 @@ export class Maritime {
  readonly object=new THREE.Group();readonly named:NamedBuilding[]=[];
  readonly vessels:Vessel[]=[];
  readonly containerCount=156;
- private readonly hoists:THREE.Group[]=[];
- private time=0;
+  private readonly hoists:THREE.Group[]=[];
+  private readonly hooks:THREE.Group[]=[];
+  private readonly trucks:THREE.Group[]=[];
+  private time=0;
  constructor(){
   this.object.name='ChittagongPortAndMarineTraffic';
   const port=new THREE.Group();port.position.set(PORT.x,0,PORT.z);port.rotation.y=PORT.yaw;this.object.add(port);
@@ -60,10 +62,8 @@ export class Maritime {
   // Dock bumpers, bollards, safety stripes and container handling lanes.
   for(let z=-62;z<=62;z+=8){b.box(1.4,1.5,2,0x344953,-12.6,2,z);b.add(new THREE.CylinderGeometry(.4,.6,.8,8),0x455560,-17,4.7,z);b.box(.8,.04,3.8,z%16?0xf0ca56:0x384953,-19,4.74,z);}
   for(const x of [-26,-50,-78,-111])b.box(.25,.05,126,0xf1da91,x,ground+.45,0);
-  for(let row=0;row<6;row++)for(let col=0;col<4;col++)for(let level=0;level<2+(row%3===0?1:0);level++)container(b,-39-col*8,ground,-49+row*18,row+col+level,5,3,12);
-  // Second tier positions are explicit so stacks have real height.
-  // Correct the tiered stacks using their own raised origins below.
-  for(let row=0;row<6;row++)for(let col=0;col<4;col++)for(let level=1;level<3;level++)container(b,-39-col*8,ground+level*3,-49+row*18,row+col+level,5,3,12);
+  // Tiered stacks share one raised origin — never build the same box twice.
+  for(let row=0;row<6;row++)for(let col=0;col<4;col++)for(let level=0;level<2+(row%3===0?1:0);level++)container(b,-39-col*8,ground+level*3,-49+row*18,row+col+level,5,3,12);
   for(const z of [-38,33]){
    b.box(26,12,36,0xe5d5aa,-96,ground+6,z);b.box(29,.8,39,0x4b8d95,-96,ground+12.3,z);
    for(let k=-1;k<=1;k++)b.box(.2,6,7,0x51727a,-82.8,ground+3,z+k*10);
@@ -72,7 +72,9 @@ export class Maritime {
   b.box(18,10,12,0xf3e7c9,-98,ground+5,62);b.box(18,2,.2,0x548794,-98,ground+7,68.1);
   b.box(22,.7,15,0x42798c,-98,ground+10,62);
   for(const x of [-125,-78])b.box(.5,3,134,0x9eb4ad,x,ground+1.5,0);
-  // Three ship-to-shore cranes, with suspended spreaders that move gently.
+  // Three ship-to-shore cranes; each trolley travels the boom and its spreader
+  // raises and lowers a container onto the quay and the ship (daily loading).
+  let crane=0;
   for(const z of [-44,0,44]){
    for(const x of [-30,-20])for(const dz of [-5,5]){b.box(1.2,29,1.2,0xe5b34e,x,ground+14.5,z+dz);b.box(3,1,3,0x344c5b,x,ground+.5,z+dz);}
    b.box(48,1.4,2,0xf2c75a,-10,ground+29,z);b.box(13,1.5,14,0xf0bf51,-25,ground+25,z);
@@ -80,10 +82,15 @@ export class Maritime {
    b.beam(new THREE.Vector3(-28,ground+39,z),new THREE.Vector3(12,ground+29,z),.14,0xf5df9b);
    b.beam(new THREE.Vector3(-28,ground+39,z),new THREE.Vector3(-33,ground+29,z),.14,0xf5df9b);
    b.box(.9,12,.9,0xd7a849,-28,ground+33,z);
-   const hoist=new THREE.Group();hoist.position.set(0,ground+17,z);const hb=builder();hb.box(7,.5,3,0xf3c34e,0,0,0);for(const dx of [-3,3])hb.box(.06,12,.06,0x445b61,dx,6,0);hoist.add(hb.finish());this.hoists.push(hoist);port.add(hoist);
+   const trolley=new THREE.Group();trolley.position.set(0,ground+29,z);
+   const tb=builder();tb.box(8,.6,3.4,0xf3c34e,0,0,0);trolley.add(tb.finish());
+   const hook=new THREE.Group();
+   const hb=builder();for(const dx of [-3,3])hb.box(.1,10,.1,0x445b61,dx,-5,0);hb.box(6,.7,3.4,0x445b61,0,-10.6,0);container(hb,0,-12.4,0,crane,5,2.8,11);hook.add(hb.finish());
+   trolley.add(hook);this.hoists.push(trolley);this.hooks.push(hook);port.add(trolley);
+   crane++;
   }
-  // Yard trucks and trailers occupy the marked service lane.
-  for(let i=0;i<4;i++){const z=-48+i*29,x=-72;b.box(4,1,14,0x3a4d59,x,ground+1,z);b.box(4,3,4,CARGO[i]!,x,ground+2.7,z+8);b.box(3.4,1.1,.12,0x7bbed0,x,ground+3.2,z+10.1);container(b,x,ground+1.5,z,i,3.7,2.6,11);for(const side of [-1,1])for(const dz of [-4,4,8])b.add(new THREE.CylinderGeometry(.8,.8,.5,8).rotateZ(Math.PI/2),0x293b45,x+side*2,ground+.8,z+dz);}
+  // Yard trucks haul containers along the service lane.
+  for(let i=0;i<4;i++){const t=builder();t.box(4,1,14,0x3a4d59,0,1,0);t.box(4,3,4,CARGO[i]!,0,2.7,8);t.box(3.4,1.1,.12,0x7bbed0,0,3.2,10.1);container(t,0,1.5,0,i,3.7,2.6,11);for(const side of [-1,1])for(const dz of [-4,4,8])t.add(new THREE.CylinderGeometry(.8,.8,.5,8).rotateZ(Math.PI/2),0x293b45,side*2,.8,dz);const truck=new THREE.Group();truck.add(t.finish());truck.position.set(-72,ground,-48+i*29);port.add(truck);this.trucks.push(truck);}
   // Entrance gate, lighting and visible port lettering.
   for(const x of [-120,-104])b.box(.8,7,.8,0xf0d9a9,x,ground+3.5,-69);
   b.box(19,2,.8,0x286c7e,-112,ground+7,-69);
@@ -106,12 +113,19 @@ export class Maritime {
  update(delta:number):void{
   this.time+=delta;const [,pz]=project(22.23444,91.79226);
   this.vessels.forEach(v=>{
-   if(v.kind==='berthed'){v.object.position.y=.3+Math.sin(this.time*.7+v.phase)*.12;v.object.rotation.z=Math.sin(this.time*.4+v.phase)*.007;return;}
+   if(v.kind==='berthed'){v.object.position.y=.3+Math.sin(this.time*.45+v.phase)*.05;v.object.rotation.z=Math.sin(this.time*.3+v.phase)*.003;return;}
    const speed=v.kind==='speedboat'?.09:.009,a=this.time*speed+v.phase;
    const position=(angle:number)=>{const z=pz+Math.sin(angle)*(v.kind==='speedboat'?145:310);return new THREE.Vector3(coastX(z)-(v.kind==='speedboat'?95:245)+Math.cos(angle)*(v.kind==='speedboat'?28:35),.5,z);};
    const p=position(a),next=position(a+.01);v.object.position.copy(p);v.object.position.y+=Math.sin(this.time*1.6+v.phase)*(v.kind==='speedboat'?.15:.22);v.object.rotation.set(0,Math.atan2(next.x-p.x,next.z-p.z),Math.sin(this.time+v.phase)*.018);
    if(v.wake){v.wake.position.set(p.x,.7,p.z);v.wake.rotation.y=v.object.rotation.y;(v.wake.material as THREE.MeshBasicMaterial).opacity=.22+.06*Math.sin(this.time*2+v.phase);}
   });
-  this.hoists.forEach((h,i)=>{h.position.x=-3+Math.sin(this.time*.16+i)*6;h.position.y=21+Math.sin(this.time*.24+i)*2;});
- }
+   this.hoists.forEach((t,i)=>{
+    const phase=((this.time*.13+i*.31)%1)*Math.PI*2;
+    const travel=Math.sin(phase)*.5+.5;              // 0 over apron .. 1 over ship
+    t.position.x=-28+travel*32;
+    const settle=Math.abs(Math.cos(phase));           // lower the spreader at each end
+    this.hooks[i]!.position.y=-2-settle*13;
+   });
+   this.trucks.forEach((t,i)=>{t.position.z=-62+((this.time*.05+i*.27)%1)*124;});
+  }
 }

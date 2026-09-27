@@ -76,7 +76,10 @@ export class PlayerController {
   private integrate(delta: number): void {
     const oldX=this.player.position.x,oldZ=this.player.position.z;
     this.player.position.addScaledVector(this.player.velocity, delta);
-    if(shoreDistance(this.player.position.x,this.player.position.z)<1){this.player.position.x=oldX;this.player.position.z=oldZ;this.player.velocity.x=0;this.player.velocity.z=0;}
+    const x=this.player.position.x,z=this.player.position.z;
+    // Bridges let the player cross water the ground surface would otherwise block.
+    const onDeck=this.getHeight(x,z,this.player.position.y)-this.getHeight(x,z)>1.5;
+    if(shoreDistance(x,z)<1&&!onDeck){this.player.position.x=oldX;this.player.position.z=oldZ;this.player.velocity.x=0;this.player.velocity.z=0;}
   }
 
   private resolveGround(): void {
@@ -85,7 +88,7 @@ export class PlayerController {
     this.player.position.x = cx;
     this.player.position.z = cz;
 
-    const groundY = this.getHeight(this.player.position.x, this.player.position.z);
+    const groundY = this.getHeight(this.player.position.x, this.player.position.z, this.player.position.y);
 
     if (this.player.position.y <= groundY + GROUND_EPSILON) {
       this.player.position.y = groundY;

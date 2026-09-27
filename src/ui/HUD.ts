@@ -37,7 +37,7 @@ export class HUD {
         <div class="hud__quest-progress" data-quest-progress></div>
       </div>
       <details class="hud__controls"><summary>How to explore</summary>
-        <p>Overview: drag to explore · scroll to zoom · right-drag to orbit · double-click to walk there.</p>
+        <p>Overview: drag to explore · scroll to zoom · right-drag to orbit · WASD/arrows to fly · double-click to walk there.</p>
         WASD Move &middot; Mouse Drag Camera &middot; Wheel Zoom &middot; Shift Sprint &middot; Space Jump<br />
         Riding: W Accelerate &middot; S Brake / Reverse &middot; A/D Steer &middot; Space Handbrake<br />
         E Explore &middot; / Search route &middot; H Notebook &middot; O Overview &middot; C Car &middot; B Bicycle &middot; F Ride &middot; Tab Map &middot; N Big map &middot; T Time &middot; L Locate &middot; G GPS &middot; P Post-FX &middot; M Mute

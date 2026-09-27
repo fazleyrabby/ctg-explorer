@@ -8,6 +8,7 @@ import {CITY_STOPS,shoreDistance,segmentDistance} from '../src/geography/CityGeo
 import {CityStructures,type ElevatedRoad} from '../src/world/CityStructures';
 import {richVehicle} from '../src/world/RichVehicles';
 import {DISTRICT_PLACES} from '../src/world/DistrictLandmarks';
+import {PROMINENT_PLACES} from '../src/world/ProminentPlaces';
 import {CHEARGI_WALK} from '../src/quests/quest';
 import type {BuildingData} from '../src/world/Buildings';
 const roads:RoadData[]=JSON.parse(readFileSync('public/world/chattogram/compact/roads.json','utf8')).roads;
@@ -16,7 +17,7 @@ const height=createHeightProvider();
 const graph=new RoadGraph(roads), start=roads[0]!.points[0]!;
 for(const road of roads)for(const point of road.points)assert(graph.route(...start,...point),'Every road must be reachable');
 const bounds=localWorldBounds();
-const destinations=[...[...DISTRICT_PLACES,...CITY_STOPS].map(p=>({...p,...geoToLocal(p)})),...buildings.filter(b=>b.name).map(b=>({name:b.name,x:b.ring.reduce((s,p)=>s+p[0],0)/b.ring.length,z:b.ring.reduce((s,p)=>s+p[1],0)/b.ring.length}))];
+const destinations=[...[...DISTRICT_PLACES,...CITY_STOPS,...PROMINENT_PLACES].map(p=>({...p,...geoToLocal(p)})),...buildings.filter(b=>b.name).map(b=>({name:b.name,x:b.ring.reduce((s,p)=>s+p[0],0)/b.ring.length,z:b.ring.reduce((s,p)=>s+p[1],0)/b.ring.length}))];
 for(const stop of CHEARGI_WALK.stops)assert(destinations.some(p=>p.name===stop.landmark));
 for(const p of destinations) {
   assert(p.x>bounds.minX+12&&p.x<bounds.maxX-12&&p.z>bounds.minZ+12&&p.z<bounds.maxZ-12);

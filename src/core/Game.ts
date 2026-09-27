@@ -6,6 +6,9 @@ import { SceneManager } from "@/core/SceneManager";
 import { Atmosphere } from "@/world/Atmosphere";
 import { CityStructures } from "@/world/CityStructures";
 import { CityLife } from "@/world/CityLife";
+import { Maritime } from "@/world/Maritime";
+import { Airport } from "@/world/Airport";
+import { ProminentPlaces } from "@/world/ProminentPlaces";
 import { shoreDistance } from "@/geography/CityGeography";
 import { Terrain } from "@/world/Terrain";
 import { DistrictLandmarks } from "@/world/DistrictLandmarks";
@@ -49,7 +52,7 @@ import {
 } from "@/geography/Geolocation";
 import { WORLD_CONFIG } from "@/config/WorldConfig";
 import { clampToWorld, geoToLocal } from "@/geography/Projection";
-import { createHeightProvider, type HeightProvider } from "@/geography/WorldHeight";
+import { createHeightProvider, createSurfaceProvider, type HeightProvider } from "@/geography/WorldHeight";
 
 /**
  * Owns the game loop and wires the systems together (spec §61).
@@ -77,6 +80,9 @@ export class Game {
   private traffic?: Traffic;
   private atmosphere?: Atmosphere;
   private cityLife?: CityLife;
+  private maritime?: Maritime;
+  private airport?: Airport;
+  private prominentPlaces?: ProminentPlaces;
   private quest?: QuestManager;
   private notebook?: Notebook;
   private beacon?: QuestBeacon;
@@ -158,16 +164,30 @@ export class Game {
     const terrain = new Terrain(this.getHeight);
     const roads = await Roads.load(this.getHeight);
     const structures = await CityStructures.load(this.getHeight);
+    // Elevated decks become a walkable/rideable surface on top of the ground.
+    this.getHeight = createSurfaceProvider(this.getHeight, structures);
+    this.controller = new PlayerController(this.player, this.input, this.cameraRig, this.getHeight);
     this.cityLife = new CityLife(roads.roads, this.getHeight);
     this.atmosphere = new Atmosphere();
     this.sceneManager.scene.add(structures.object, this.cityLife.object, this.atmosphere.object);
     const buildings = await Buildings.load(this.getHeight);
     this.neighborhoods = new Neighborhoods(roads.roads, buildings.list, this.getHeight);
     this.sceneManager.scene.add(this.neighborhoods.object, new UrbanFabric(roads.roads, buildings.list, this.neighborhoods, this.getHeight).object);
+    // Chittagong Port: quays, cranes, stacked containers, ships and river traffic.
+    this.maritime = new Maritime();
+    this.sceneManager.scene.add(this.maritime.object);
+    // Airport runway with airliners that land and take off.
+    this.airport = new Airport(this.getHeight);
+    this.sceneManager.scene.add(this.airport.object);
     buildings.named.unshift(...this.cityLife.named);
+    buildings.named.push(...this.maritime.named);
     const districtLandmarks = new DistrictLandmarks(this.getHeight);
     buildings.named.push(...districtLandmarks.named);
     this.sceneManager.scene.add(districtLandmarks.object);
+    // The wider city: Agrabad, GEC, New Market, Foy's Lake and other districts.
+    this.prominentPlaces = new ProminentPlaces(roads.roads, buildings.list, this.getHeight);
+    buildings.named.push(...this.prominentPlaces.named);
+    this.sceneManager.scene.add(this.prominentPlaces.object);
     const landmarkDetails = LandmarkDetails.build(
       buildings.list,
       buildings.named,
@@ -372,6 +392,8 @@ export class Game {
     const delta = Math.min(this.clock.getDelta(), 0.05);
 
     this.neighborhoods?.update(delta);
+    this.maritime?.update(delta);
+    this.airport?.update(delta);
     this.atmosphere?.update(delta, this.timeOfDay.isNight, this.player.position, this.mode === "overview");
     
     this.pedestrians?.update(delta);
@@ -382,6 +404,10 @@ export class Game {
     let activeCamera: THREE.Camera;
     if (this.mode === "overview" && this.overview) {
       this.overview.handleInput(this.input);
+      // WASD / arrows fly the bird's-eye view across the whole map.
+      const fly = this.input.moveForward + (this.input.isDown("ArrowUp") ? 1 : 0) - (this.input.isDown("ArrowDown") ? 1 : 0);
+      const strafe = this.input.moveRight + (this.input.isDown("ArrowRight") ? 1 : 0) - (this.input.isDown("ArrowLeft") ? 1 : 0);
+      this.overview.move(delta, fly, strafe, this.input.sprinting);
       this.overview.update(delta);
       activeCamera = this.overview.camera;
     } else {

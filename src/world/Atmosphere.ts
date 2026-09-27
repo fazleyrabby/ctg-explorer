@@ -3,9 +3,16 @@ import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import {localWorldBounds} from '@/geography/Projection';
 import {shoreDistance,coastX} from '@/geography/CityGeography';
 
+// A single prevailing wind drives every cloud; a small speed spread adds shear
+// without letting clouds overtake each other unrealistically.
+const WIND_X=6.5,WIND_Z=2.8;
+const wrap=(v:number,size:number)=>((v%size)+size)%size;
+
 export class Atmosphere {
   readonly object=new THREE.Group();
   private readonly clouds:THREE.InstancedMesh;
+  private readonly cloudParams:Float32Array;
+  private readonly cloudCount=48;
   private readonly sun:THREE.Mesh;
   private readonly water:THREE.ShaderMaterial;
   private time=0;
@@ -102,8 +109,14 @@ export class Atmosphere {
     });
     const ocean=new THREE.Mesh(sea,this.water);ocean.position.set((b.minX+b.maxX)/2,.25,(b.minZ+b.maxZ)/2);this.object.add(ocean);
     const cloudGeo=mergeGeometries(Array.from({length:6},(_,i)=>new THREE.SphereGeometry(10,10,7).scale(1,.55+(i%3)*.15,.65).translate((i-2.5)*12,Math.sin(i)*4,Math.cos(i)*5)))!;
-    this.clouds=new THREE.InstancedMesh(cloudGeo,new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.9,depthWrite:false,fog:false}),22);
+    this.clouds=new THREE.InstancedMesh(cloudGeo,new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.9,depthWrite:false,fog:false}),this.cloudCount);
     this.clouds.frustumCulled=false;this.object.add(this.clouds);
+    this.cloudParams=new Float32Array(this.cloudCount*4);
+    for(let i=0;i<this.cloudCount;i++){
+      const r=(n:number)=>{const v=Math.sin(i*127.1+n*311.7)*43758.5453;return v-Math.floor(v);};
+      this.cloudParams[i*4]=r(1);this.cloudParams[i*4+1]=r(2);
+      this.cloudParams[i*4+2]=150+r(3)*135;this.cloudParams[i*4+3]=.85+r(4)*1.15;
+    }
     this.sun=new THREE.Mesh(new THREE.SphereGeometry(52,24,16),new THREE.MeshBasicMaterial({color:0xffe58a,fog:false}));
     this.sun.position.set(b.minX-180,460,b.minZ-340);this.object.add(this.sun);
     this.update(0,false);
@@ -113,14 +126,18 @@ export class Atmosphere {
     this.sun.visible=!night;
     if(focus&&!overview)this.sun.position.set(focus.x-600,focus.y+125,focus.z+120);
     else this.sun.position.set(this.bounds.minX-180,460,this.bounds.minZ-340);
-    const b=this.bounds,m=new THREE.Matrix4();
-    for(let i=0;i<22;i++) {
-      const width=b.maxX-b.minX+700;
-      let x=b.minX-350+((i*173+this.time*(1+i%3*.3))%width);
-      let z=i%2?b.maxZ+200+(i%4)*90:b.minZ-180-(i%4)*65;
-      let y=145+(i%5)*27;
-      if(focus&&!overview){const angle=i/22*Math.PI*2+this.time*.001; x=focus.x+Math.cos(angle)*450;z=focus.z+Math.sin(angle)*450;y=focus.y+70+(i%4)*14;}
-      m.compose(new THREE.Vector3(x,y,z),new THREE.Quaternion(),new THREE.Vector3(1+i%3*.4,1,1));this.clouds.setMatrixAt(i,m);
+    const b=this.bounds,margin=260;
+    const minX=b.minX-margin,minZ=b.minZ-margin,width=b.maxX-b.minX+2*margin,depth=b.maxZ-b.minZ+2*margin;
+    const m=new THREE.Matrix4(),q=new THREE.Quaternion(),pos=new THREE.Vector3(),scl=new THREE.Vector3();
+    for(let i=0;i<this.cloudCount;i++) {
+      const fx=this.cloudParams[i*4]!,fz=this.cloudParams[i*4+1]!,y=this.cloudParams[i*4+2]!,s=this.cloudParams[i*4+3]!;
+      const speed=.82+(i*7%9)*.045;
+      // Shared wind with a gentle speed spread; clouds wrap across the sky and
+      // cover the whole map, so none appear only along the edges.
+      const x=minX+wrap(fx*width+WIND_X*speed*this.time,width);
+      const z=minZ+wrap(fz*depth+WIND_Z*speed*this.time,depth);
+      pos.set(x,y+Math.sin(this.time*.16+i)*2.5,z);scl.set(s*1.3,s*.68,s);
+      m.compose(pos,q,scl);this.clouds.setMatrixAt(i,m);
     }
     this.clouds.instanceMatrix.needsUpdate=true;
   }

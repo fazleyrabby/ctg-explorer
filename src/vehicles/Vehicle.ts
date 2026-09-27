@@ -59,10 +59,10 @@ export class Vehicle {
   }
 
   /** Places the vehicle on the ground just in front of a point. */
-  place(x: number, z: number, heading: number, getHeight: HeightProvider): void {
+  place(x: number, z: number, heading: number, getHeight: HeightProvider, y = 0): void {
     this.heading = heading;
     this.speed = 0;
-    this.position.set(x, getHeight(x, z), z);
+    this.position.set(x, getHeight(x, z, y), z);
     this.object.visible = true;
     this.sync();
   }
@@ -103,8 +103,11 @@ export class Vehicle {
     const dx = Math.sin(this.heading) * this.speed * delta;
     const dz = Math.cos(this.heading) * this.speed * delta;
     const [nextX, nextZ] = clampToWorld(this.position.x + dx, this.position.z + dz, 12);
-    if(shoreDistance(nextX,nextZ)<2){this.speed=0;return;}
-    this.position.set(nextX, getHeight(nextX, nextZ), nextZ);
+    const support = getHeight(nextX, nextZ, this.position.y);
+    // Bridges carry the vehicle over water the ground would otherwise block.
+    const onDeck = support - getHeight(nextX, nextZ) > 1.5;
+    if(shoreDistance(nextX,nextZ)<2 && !onDeck){this.speed=0;return;}
+    this.position.set(nextX, support, nextZ);
 
     const wheelSpin = (this.speed / 0.33) * delta;
     for (const wheel of this.wheels) wheel.rotation.x -= wheelSpin;

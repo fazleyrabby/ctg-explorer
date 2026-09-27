@@ -56,11 +56,23 @@ export class OverviewCamera {
   }
 
   /** Grab-and-drag the ground plane, scaled to the current zoom. */
-  pan(dx: number, dy: number, viewportHeight: number): void {
-    const scale = 2 * this.distance * Math.max(1, .95 / this.camera.aspect) * Math.tan(THREE.MathUtils.degToRad(25)) / Math.max(1, viewportHeight);
+  pan(dx: number, dy: number, viewportHeight: number): void {    const scale = 2 * this.distance * Math.max(1, .95 / this.camera.aspect) * Math.tan(THREE.MathUtils.degToRad(25)) / Math.max(1, viewportHeight);
     const forward = dy * scale / Math.max(.3, Math.sin(this.pitch));
     this.focus.x += -dx * scale * Math.cos(this.yaw) + forward * Math.sin(this.yaw);
     this.focus.z += dx * scale * Math.sin(this.yaw) + forward * Math.cos(this.yaw);
+    const b = localWorldBounds();
+    this.focus.x = THREE.MathUtils.clamp(this.focus.x, b.minX, b.maxX);
+    this.focus.z = THREE.MathUtils.clamp(this.focus.z, b.minZ, b.maxZ);
+  }
+
+  /** Bird's-eye fly-pan with WASD; speed scales with zoom so far views cover ground. */
+  move(delta: number, forward: number, right: number, sprint: boolean): void {
+    if (forward === 0 && right === 0) return;
+    const speed = this.distance * .6 * (sprint ? 2.2 : 1);
+    const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
+    // Look direction on the ground is (-sin,-cos); right is (cos,-sin).
+    this.focus.x += (-sin * forward + cos * right) * speed * delta;
+    this.focus.z += (-cos * forward - sin * right) * speed * delta;
     const b = localWorldBounds();
     this.focus.x = THREE.MathUtils.clamp(this.focus.x, b.minX, b.maxX);
     this.focus.z = THREE.MathUtils.clamp(this.focus.z, b.minZ, b.maxZ);

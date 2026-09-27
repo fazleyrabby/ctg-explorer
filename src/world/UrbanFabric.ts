@@ -3,6 +3,8 @@ import * as THREE from 'three';
 import {localWorldBounds,geoToLocal} from '@/geography/Projection';
 import {RIVER,shoreDistance,segmentDistance} from '@/geography/CityGeography';
 import {DISTRICT_PLACES} from '@/world/DistrictLandmarks';
+import {inProminentDistrict} from '@/world/ProminentPlaces';
+import {inAirportDistrict} from '@/world/Airport';
 import {buildRoadGeometry,type RoadData} from '@/world/Roads';
 import type {BuildingData} from '@/world/Buildings';
 import type {HeightProvider} from '@/geography/WorldHeight';
@@ -24,7 +26,7 @@ export class UrbanFabric {
     const occupied=existing.map(b=>({minX:Math.min(...b.ring.map(p=>p[0]))-4,maxX:Math.max(...b.ring.map(p=>p[0]))+4,minZ:Math.min(...b.ring.map(p=>p[1]))-4,maxZ:Math.max(...b.ring.map(p=>p[1]))+4}));
     const landmarks=DISTRICT_PLACES.map(p=>({...geoToLocal(p),radius:p.type==='park'?48:32}));
     const roadClear=(x:number,z:number,r:number)=>!roads.some(road=>road.points.slice(1).some((b,i)=>segmentDistance(x,z,road.points[i]!,b)<r+road.width/2+4));
-    const clear=(x:number,z:number,r:number)=>!inPortDistrict(x,z,r)&&shoreDistance(x,z)>r+7&&roadClear(x,z,r)&&!occupied.some(b=>x+r>b.minX&&x-r<b.maxX&&z+r>b.minZ&&z-r<b.maxZ)&&!neighborhood.buildings.some(b=>Math.hypot(x-b.x,z-b.z)<r+b.radius+4)&&!neighborhood.trees.some(t=>Math.hypot(x-t.x,z-t.z)<r+6)&&!landmarks.some(p=>Math.hypot(x-p.x,z-p.z)<r+p.radius);
+    const clear=(x:number,z:number,r:number)=>!inPortDistrict(x,z,r)&&!inProminentDistrict(x,z,r)&&!inAirportDistrict(x,z,r)&&shoreDistance(x,z)>r+7&&roadClear(x,z,r)&&!occupied.some(b=>x+r>b.minX&&x-r<b.maxX&&z+r>b.minZ&&z-r<b.maxZ)&&!neighborhood.buildings.some(b=>Math.hypot(x-b.x,z-b.z)<r+b.radius+4)&&!neighborhood.trees.some(t=>Math.hypot(x-t.x,z-t.z)<r+6)&&!landmarks.some(p=>Math.hypot(x-p.x,z-p.z)<r+p.radius);
     const tree=(x:number,z:number,size=1)=>{const y=height(x,z);box(x,y+2.4*size,z,.65,4.8*size,.65,0x937253);for(let j=0;j<3;j++)piece(crowns,x+Math.sin(j*2)*size*2,y+(5+j*.9)*size,z+Math.cos(j*2)*size*2,3.2*size,2.7*size,3.2*size,[0x3e9861,0x73b94e,0x9bce65][j]!);};
     const palette=[0xffdf9b,0xeca18b,0x80c7b8,0xa3c9df,0xc3b4d9];
     let index=0;

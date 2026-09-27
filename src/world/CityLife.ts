@@ -1,4 +1,5 @@
 import {inPortDistrict} from '@/geography/PortLayout';
+import {inAirportDistrict} from '@/world/Airport';
 import * as THREE from 'three';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import {CITY_STOPS,coastX,project,shoreDistance,segmentDistance} from '@/geography/CityGeography';
@@ -33,7 +34,7 @@ export class CityLife {
   paths.forEach((path,index)=>{
     for(let d=18;d<path.total;d+=38){const p=samplePath(path,d),side=Math.floor(d/38)%2?1:-1,off=path.width/2+10;
       const x=p.x+Math.cos(p.yaw)*off*side,z=p.z-Math.sin(p.yaw)*off*side;
-      if(shoreDistance(x,z)<12||inPortDistrict(x,z,8))continue;
+      if(shoreDistance(x,z)<12||inPortDistrict(x,z,8)||inAirportDistrict(x,z,8))continue;
       if(index%3===0&&d%114<40)shop(x,z,p.yaw+(side>0?-Math.PI/2:Math.PI/2),index);else palm(x,z,.7+(index%3)*.15);
     }
   });
@@ -54,7 +55,7 @@ export class CityLife {
   // Sparse planted groves, only on land and away from street geometry.
   for(let i=0;i<100;i++){
     const x=px+60+(i*131%700),z=pz+80+(i*197%1000);
-    if(shoreDistance(x,z)<25||inPortDistrict(x,z,8))continue;
+    if(shoreDistance(x,z)<25||inPortDistrict(x,z,8)||inAirportDistrict(x,z,8))continue;
     const nearRoad=roads.some(r=>r.points.slice(1).some((b,j)=>segmentDistance(x,z,r.points[j]!,b)<18));
     if(!nearRoad)palm(x,z,.8);
   }

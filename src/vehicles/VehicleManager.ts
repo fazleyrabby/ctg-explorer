@@ -36,7 +36,7 @@ export class VehicleManager {
 
     const x = player.position.x + Math.sin(player.facing) * SUMMON_DISTANCE;
     const z = player.position.z + Math.cos(player.facing) * SUMMON_DISTANCE;
-    vehicle.place(x, z, player.facing, this.getHeight);
+    vehicle.place(x, z, player.facing, this.getHeight, player.position.y);
   }
 
   /** Mounts the nearest vehicle, or dismounts if already riding. */
@@ -90,7 +90,7 @@ export class VehicleManager {
 
     const px = vehicle.object.position.x + Math.cos(vehicle.heading) * 1.4;
     const pz = vehicle.object.position.z - Math.sin(vehicle.heading) * 1.4;
-    player.position.set(px, this.getHeight(px, pz), pz);
+    player.position.set(px, this.getHeight(px, pz, vehicle.object.position.y), pz);
     player.velocity.set(0, 0, 0);
     player.object.visible = true;
     player.sync();
