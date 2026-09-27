@@ -1,12 +1,13 @@
 # Chattogram explorer — current progress
 
-Updated 2026-09-27. The compact miniature has 26 destinations and 48 connected road segments; distances are deliberately compressed.
+Updated 2026-09-27. The compact miniature has 27 destinations and 48 connected road segments; distances are deliberately compressed.
 
 ## Available now
 
 - Walk, run, jump, summon and ride a car or bicycle; original character retained.
 - Continuous airport–Patenga–city–Bahaddarhat route, Shah Amanat Bridge, and four elevated structures with smooth, y-aware walkable/rideable decks.
 - Chittagong Port: cargo ships, speedboats, warehouses, container stacks, animated cranes and yard trucks, walkable apron.
+- Chattogram Railway Station: reserved compact rail parcel, two tracks with sleepers and buffer stops, covered platforms, ticket hall, benches and two animated three-car trains with dwell pauses. Layout is compressed and shifted to the nearest clear parcel; station anchor reference: https://mapcarta.com/W1075277515.
 - Shah Amanat Airport: runway, terminal and planes following a flight loop.
 - Existing authored districts: Agrabad, GEC, New Market, Chawkbazar, CRB, Foy’s Lake, Nasirabad, Khulshi, Pahartali, Khatunganj and CMCH.
 - Animated coastal water, subtle river water, vegetation, clouds, pedestrians and traffic.

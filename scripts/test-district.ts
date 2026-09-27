@@ -1,3 +1,6 @@
+import {planRailway,railwayLayout,inRailway,RAILWAY_PLACE} from "../src/geography/RailwayLayout";
+import {Railway,trainPosition} from "../src/world/Railway";
+import {planLaldighi,laldighiLayout,inLaldighi} from "../src/geography/PondLayout";
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {buildRoadGeometry,type RoadData} from '../src/world/Roads';
@@ -17,7 +20,7 @@ const height=createHeightProvider();
 const graph=new RoadGraph(roads), start=roads[0]!.points[0]!;
 for(const road of roads)for(const point of road.points)assert(graph.route(...start,...point),'Every road must be reachable');
 const bounds=localWorldBounds();
-const destinations=[...[...DISTRICT_PLACES,...CITY_STOPS,...PROMINENT_PLACES].map(p=>({...p,...geoToLocal(p)})),...buildings.filter(b=>b.name).map(b=>({name:b.name,x:b.ring.reduce((s,p)=>s+p[0],0)/b.ring.length,z:b.ring.reduce((s,p)=>s+p[1],0)/b.ring.length}))];
+const destinations=[...[...DISTRICT_PLACES,...CITY_STOPS,...PROMINENT_PLACES,RAILWAY_PLACE].map(p=>({...p,...geoToLocal(p)})),...buildings.filter(b=>b.name).map(b=>({name:b.name,x:b.ring.reduce((s,p)=>s+p[0],0)/b.ring.length,z:b.ring.reduce((s,p)=>s+p[1],0)/b.ring.length}))];
 for(const stop of CHEARGI_WALK.stops)assert(destinations.some(p=>p.name===stop.landmark));
 for(const p of destinations) {
   assert(p.x>bounds.minX+12&&p.x<bounds.maxX-12&&p.z>bounds.minZ+12&&p.z<bounds.maxZ-12);
@@ -50,6 +53,8 @@ const total=roads.reduce((s,r)=>s+r.points.slice(1).reduce((l,p,i)=>l+Math.hypot
 console.log(`PASS: ${destinations.length} destinations; ${roads.length} connected road sections; ${Math.round(total)} m miniature road network; ${Math.round(bounds.maxX-bounds.minX)} × ${Math.round(bounds.maxZ-bounds.minZ)} m playable area. Geometry, quest coverage, boundaries and geographic round-trips passed.`);
 
 const elevated:ElevatedRoad[]=JSON.parse(readFileSync('public/world/chattogram/compact/elevated.json','utf8')).elevated;
+planLaldighi([...roads,...elevated],buildings);
+planRailway([...roads,...elevated],buildings);
 const structures=CityStructures.build(elevated,height);
 assert.equal(structures.paths.length,4);
 for(const p of structures.paths){assert(p.heightAt(p.path.total/2)>5);assert(p.road.sourceWayIds.length>0);}
@@ -125,3 +130,16 @@ for(let d=1;d<bah.path.total;d++)assert(Math.abs(bah.heightAt(d)-bah.heightAt(d-
 const market=new CityLife(roads,height,structures.paths.map(p=>p.road));
 for(const box of market.solids){const x=(box.minX+box.maxX)/2,z=(box.minZ+box.maxZ)/2;for(const r of [...roads,...elevated])for(let i=1;i<r.points.length;i++)assert(segmentDistance(x,z,r.points[i-1]!,r.points[i]!)>=r.width/2+7.99,'Market shops clear roads and flyover ramps');}
 console.log('PASS: gentle Bahaddarhat approaches and market road clearance.');
+
+for(const road of roads)for(let i=1;i<road.points.length;i++)assert(segmentDistance(laldighiLayout.x,laldighiLayout.z,road.points[i-1]!,road.points[i]!)>=laldighiLayout.radius+road.width/2+4,'Laldighi parcel clears roads and walking paths');
+for(const b of neighborhood.buildings)assert(!inLaldighi(b.x,b.z,b.radius),'Buildings clear pond park');
+for(const t of neighborhood.trees)assert(!inLaldighi(t.x,t.z,5),'Generated trees clear pond park');
+for(const p of fabric.plots)assert(!inLaldighi(p.x,p.z,p.radius),'Infill clears pond park');
+console.log('PASS: reserved Laldighi parcel clears roads, buildings and generated trees.');
+
+const railway=new Railway(height);assert.equal(railway.named[0]!.name,'Chattogram Railway Station');
+assert.equal(trainPosition(0),trainPosition(3),'Train dwells at platform');
+for(let t=0;t<100;t+=.25)assert(Math.abs(trainPosition(t))<=48,'Train stays inside reserved tracks');
+for(const b of neighborhood.buildings)assert(!inRailway(b.x,b.z,b.radius),'Buildings clear railway');
+for(const p of fabric.plots)assert(!inRailway(p.x,p.z,p.radius),'Infill clears railway');
+railway.update(12);console.log('PASS: railway reservation, station geometry and bounded train movement.',railwayLayout);

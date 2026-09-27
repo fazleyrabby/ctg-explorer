@@ -1,3 +1,6 @@
+import {planRailway,railPoint,railwayLayout} from "@/geography/RailwayLayout";
+import {Railway} from "@/world/Railway";
+import {planLaldighi} from "@/geography/PondLayout";
 import {NightLights} from '@/world/NightLights';
 import {Colliders} from '@/world/Colliders';
 import {UrbanFabric} from '@/world/UrbanFabric';
@@ -82,6 +85,7 @@ export class Game {
   private pedestrians?: Pedestrians;
   private traffic?: Traffic;
   private atmosphere?: Atmosphere;
+  private railway?:Railway;
   private cityLife?: CityLife;
   private maritime?: Maritime;
   private airport?: Airport;
@@ -164,10 +168,15 @@ export class Game {
     // the port apron is a solid low platform so the player stands on the quay.
     this.getHeight = createSurfaceProvider(this.getHeight, structures, portSurfaceHeight);
     this.controller = new PlayerController(this.player, this.input, this.cameraRig, this.getHeight);
+    const buildings = await Buildings.load(this.getHeight);
+    planLaldighi([...roads.roads,...structures.paths.map(p=>p.road)],buildings.list);
+    planRailway([...roads.roads,...structures.paths.map(p=>p.road)],buildings.list);
+    this.railway=new Railway(this.getHeight);
+    this.sceneManager.scene.add(this.railway.object);
+    buildings.named.push(...this.railway.named);
     this.cityLife = new CityLife(roads.roads, this.getHeight, structures.paths.map(p=>p.road));
     this.atmosphere = new Atmosphere();
     this.sceneManager.scene.add(structures.object, this.cityLife.object, this.atmosphere.object);
-    const buildings = await Buildings.load(this.getHeight);
     this.neighborhoods = new Neighborhoods(roads.roads, buildings.list, this.getHeight);
     const fabric=new UrbanFabric(roads.roads, buildings.list, this.neighborhoods, this.getHeight);
     this.sceneManager.scene.add(this.neighborhoods.object,fabric.object);
@@ -187,7 +196,7 @@ export class Game {
     buildings.named.push(...this.prominentPlaces.named);
     this.sceneManager.scene.add(this.prominentPlaces.object);
     const colliders=new Colliders(buildings.list,this.getHeight);
-    for(const source of [this.neighborhoods,fabric,this.cityLife,this.maritime,districtLandmarks,this.prominentPlaces])for(const solid of source.solids)colliders.addBox(solid);
+    for(const source of [this.neighborhoods,fabric,this.cityLife,this.maritime,this.railway,districtLandmarks,this.prominentPlaces])for(const solid of source.solids)colliders.addBox(solid);
     this.controller.colliders=colliders;this.cameraRig.colliders=colliders;this.cameraRig.getHeight=this.getHeight;
     const landmarkDetails = LandmarkDetails.build(
       buildings.list,
@@ -276,9 +285,11 @@ export class Game {
     select.addEventListener("change", () => {
       const place = places.find(p => p.id === select.value);
       if (!place) return;
-      this.travelTo(place.x, place.z + 30);
-      this.cameraRig.yaw = 0;
-      this.cameraRig.pitch = 0.4;
+      const station=place.id==='chattogram-station';
+      const arrival=station?railPoint(17,52):[place.x,place.z+30];
+      this.travelTo(arrival[0]!,arrival[1]!);
+      this.cameraRig.yaw = station?railwayLayout.yaw:0;
+      this.cameraRig.pitch = station?.85:.4;
       this.cameraRig.distance = window.innerWidth < 760 ? 40 : 28;
       this.player.facing = Math.PI;
       if (this.mode === "overview") this.toggleOverview();
@@ -397,6 +408,7 @@ export class Game {
     this.neighborhoods?.update(delta);
     this.maritime?.update(delta);
     this.airport?.update(delta);
+    this.railway?.update(delta);
     this.atmosphere?.update(delta, this.timeOfDay.isNight, this.player.position, this.mode === "overview");
     
     this.pedestrians?.update(delta);

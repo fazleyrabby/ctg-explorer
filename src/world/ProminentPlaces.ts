@@ -1,3 +1,5 @@
+import {inRailway} from "@/geography/RailwayLayout";
+import {inLaldighi} from "@/geography/PondLayout";
 import {solidBox} from '@/world/SolidFootprints';
 import type {CollisionBox} from '@/world/Colliders';
 import * as THREE from 'three';
@@ -70,6 +72,7 @@ export class ProminentPlaces {
       for (let dx = -70; dx <= 70; dx += 10) for (let dz = -70; dz <= 70; dz += 10) {
         const tx = anchor.x + dx, tz = anchor.z + dz;
         if (tx < bounds.minX + 45 || tx > bounds.maxX - 45 || tz < bounds.minZ + 45 || tz > bounds.maxZ - 45) continue;
+        if (inRailway(tx,tz,60)||inLaldighi(tx,tz,60)) continue;
         if (shoreDistance(tx, tz) < 45) continue;
         let clear = Infinity;
         for (const road of roads) for (let i = 1; i < road.points.length; i++) {
@@ -85,6 +88,7 @@ export class ProminentPlaces {
       const safe = (lx: number, lz: number, r: number): boolean => {
         const px = x + lx, pz = z + lz;
         if (px < bounds.minX + 8 || px > bounds.maxX - 8 || pz < bounds.minZ + 8 || pz > bounds.maxZ - 8) return false;
+        if (inRailway(px,pz,r)||inLaldighi(px,pz,r)) return false;
         if (shoreDistance(px, pz) < 8) return false;
         for (const road of roads) for (let i = 1; i < road.points.length; i++) {
           if (segmentDistance(px, pz, road.points[i - 1]!, road.points[i]!) < road.width / 2 + r + 2) return false;

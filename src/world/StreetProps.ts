@@ -1,3 +1,5 @@
+import {inRailway} from "@/geography/RailwayLayout";
+import {inLaldighi} from "@/geography/PondLayout";
 import {segmentDistance} from "@/geography/CityGeography";
 import * as THREE from "three";
 import type { HeightProvider } from "@/geography/WorldHeight";
@@ -64,6 +66,7 @@ export class StreetProps {
             sincePole = 0;
             const px = a[0] + dirX * t + nX * offset;
             const pz = a[1] + dirZ * t + nZ * offset;
+            if(inRailway(px,pz,7)||inLaldighi(px,pz,7))continue;
             if(elevated.some(r=>r.points.slice(1).some((b,i)=>segmentDistance(px,pz,r.points[i]!,b)<r.width/2+7)))continue;
             poles.push({ x: px, z: pz, y: getHeight(px, pz), angle });
 

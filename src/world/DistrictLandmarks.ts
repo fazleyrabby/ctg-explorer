@@ -1,3 +1,4 @@
+import {laldighiLayout} from "@/geography/PondLayout";
 import {solidBox} from '@/world/SolidFootprints';
 import type {CollisionBox} from '@/world/Colliders';
 import * as THREE from 'three';
@@ -19,7 +20,7 @@ export class DistrictLandmarks {
   constructor(height:HeightProvider) {
     this.object.name='DistrictLandmarks';
     for(const place of DISTRICT_PLACES) {
-      const {x,z}=geoToLocal(place),y=height(x,z);
+      const {x,z}=place.id==='laldighi'?laldighiLayout:geoToLocal(place),y=height(x,z);
       this.named.push({...place,x,z});
       const group=new THREE.Group();group.position.set(x,y,z);this.object.add(group);
       const mesh=(geo:THREE.BufferGeometry,color:number,px=0,py=0,pz=0)=>{
@@ -52,8 +53,14 @@ export class DistrictLandmarks {
         for(let i=0;i<p.count;i++)p.setY(i,height(x+p.getX(i),z+p.getZ(i))-y+.04);
         disk.computeVertexNormals();mesh(disk,0x819e6b);
         if(pond) {
-          box(30,.8,38,0xd5c9ac,0,1);
-          box(27,.25,35,0x65a5a2,0,1.55);
+          // Low coping frames the pond; no raised opaque slab over streets.
+          box(30,.22,38,0xd5c9ac,0,.12);
+          const water=mesh(new THREE.PlaneGeometry(27,35).rotateX(-Math.PI/2),0x398f9e,0,.25);
+          (water.material as THREE.MeshStandardMaterial).roughness=.28;
+          box(30,.25,1.2,0xe4d5b4,0,.28,18.4);box(30,.25,1.2,0xe4d5b4,0,.28,-18.4);
+          box(1.2,.25,35.6,0xe4d5b4,14.4,.28);box(1.2,.25,35.6,0xe4d5b4,-14.4,.28);
+          // Block walking into the water while leaving the perimeter promenade open.
+          this.solids.push(solidBox(x,z,27,35,y-2,5));
         } else {
           for(let i=0;i<4;i++) box(16+i*3,.7,2,0xd0c2a2,0,height(x,z+8+i*2)-y+.35,8+i*2);
         }

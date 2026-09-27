@@ -540,3 +540,10 @@ Use a shared emission uniform for baked/instanced window colors, an emissive win
 ## ADR-0024 — Instance traffic wheels and defer optional effects
 
 Keep all 44 ambient vehicle bodies and motion paths. Replace individual wheel meshes with one shared instanced batch, reducing traffic geometry submissions from 204 to 45. Load PostFX only when P first enables it; split the reusable Three core from application code. The remaining core-size warning is reported rather than hidden. No FPS uplift is claimed without device-specific profiling.
+
+
+## ADR-0025 — Reserve landmark parcels before generating infill
+
+Laldighi and the railway station choose nearby clear parcels against source roads and buildings before scenery generation. All procedural infill, shops, palms and utility poles share these exclusions. Laldighi uses low coping and a perimeter grove; on-foot collision prevents entering its water.
+
+The user requested Chattogram Railway Station, tracks and trains. The station anchor uses OpenStreetMap way 1075277515 (22.33389, 91.83006); the miniature parcel and short parallel tracks are authored, not a surveyed railway alignment. Two merged three-car trains shuttle with smooth acceleration and dwell pauses, without extra audio. Static station geometry is merged; scenery reserves the entire rail corridor.
