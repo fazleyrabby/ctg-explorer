@@ -480,7 +480,15 @@ body,
 .district-controls button:hover { filter: brightness(1.08); }
 .district-controls select { max-width: 215px; }
 :focus-visible { outline: 3px solid #b57931; outline-offset: 3px; }
-.district-credit { position: absolute; bottom: 18px; left: 28px; font-size: 10px; color: #26423b; text-shadow: none; pointer-events: auto; }
+.hud__footer { position: absolute; bottom: 14px; left: 28px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; max-width: calc(100vw - 56px); pointer-events: none; }
+.district-credit { font-size: 10px; color: #26423b; text-shadow: none; pointer-events: auto; }
+.visitor-counter { display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px; border-radius: 999px; background: #f7f2e8; color: #0c5368; font-size: 11px; letter-spacing: .06em; box-shadow: 0 3px 12px #203d3914; pointer-events: auto; }
+.visitor-counter__pulse { position: relative; display: inline-block; width: 8px; height: 8px; }
+.visitor-counter__core { position: absolute; inset: 0; border-radius: 50%; background: #16a34a; }
+.visitor-counter__ping { position: absolute; inset: 0; border-radius: 50%; background: #16a34a; animation: visitorPing 2.2s cubic-bezier(0, 0, .2, 1) infinite; }
+.visitor-counter__label { font-size: 10px; font-weight: 700; opacity: .6; }
+.visitor-counter__count { font-weight: 700; font-variant-numeric: tabular-nums; }
+@keyframes visitorPing { 0% { transform: scale(1); opacity: .55; } 70%, 100% { transform: scale(2.6); opacity: 0; } }
 .district-credit a { color: inherit; text-underline-offset: 3px; }
 .is-overview .minimap, .is-overview .hud__prompt { display: none; }
 .world-label { background: #f7f2e8; color: #263f39; border: 0; padding: 5px 9px; box-shadow: 0 2px 7px #203d3920; font-size: 11px; }
@@ -494,7 +502,8 @@ body,
   .district-controls select { flex: 1; max-width: none; min-width: 0; }
   .hud__quest { left: 18px; top: 140px; width: 235px; font-size: 11px; }
   .hud__controls { left: 18px; bottom: 46px; z-index: 5; max-width: calc(100vw - 36px); }
-  .district-credit { left: 18px; right: 18px; bottom: 16px; font-size: 9px; }
+  .hud__footer { left: 18px; right: 18px; bottom: 12px; gap: 8px; }
+  .district-credit { font-size: 9px; }
   .minimap { bottom: 100px; right: 18px; }
   .world-label { font-size: 10px; max-width: 165px; white-space: normal; text-align: center; }
 }

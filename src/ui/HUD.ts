@@ -42,7 +42,10 @@ export class HUD {
         Riding: W Accelerate &middot; S Brake / Reverse &middot; A/D Steer &middot; Space Handbrake<br />
         E Explore &middot; / Search route &middot; H Notebook &middot; O Overview &middot; C Car &middot; B Bicycle &middot; F Ride &middot; Tab Map &middot; N Big map &middot; T Time &middot; L Locate &middot; G GPS &middot; P Post-FX &middot; M Mute
       </details>
-      <div class="district-credit">Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a> · Distances compressed</div>
+      <div class="hud__footer">
+        <div id="visitor-counter-mount"></div>
+        <div class="district-credit">Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a> · Distances compressed</div>
+      </div>
     `;
 
     this.fpsEl = root.querySelector("[data-fps]") as HTMLSpanElement;

@@ -1,5 +1,6 @@
 import "@/style.css";
 import { Game } from "@/core/Game";
+import { initVisitorCounter } from "@/visitorCounter";
 
 const canvas = document.getElementById("game-canvas");
 const hudRoot = document.getElementById("hud");
@@ -18,6 +19,7 @@ try {
   await game.load();
   loading?.remove();
   game.start();
+  void initVisitorCounter();
 } catch (error) {
   console.error(error);
   if (loading) {

@@ -1,0 +1,126 @@
+/**
+ * Total-visit counter backed by the homelab "view-counter" service.
+ *
+ * Self-hosted (PM2 + SQLite on the VPS / homelab), publicly served through the
+ * Cloudflare tunnel at https://views.fazleyrabbi.xyz. The service dedupes by
+ * hashed IP (10 min window) and ignores private/local IPs, so we only add light
+ * client-side guards (dev + bots + per-session) on top.
+ *
+ * API:
+ *   GET /api/hit?project=chattogram&key=visitors  (increment)
+ *   GET /api/get?project=chattogram&key=visitors  (read only)
+ */
+
+const VIEWS_BASE = 'https://views.fazleyrabbi.xyz';
+const PROJECT = 'chattogram';
+const KEY = 'visitors';
+const CACHE_KEY = 'chattogram:visits';
+const SESSION_KEY = 'chattogram:visitTracked';
+
+function isDev(): boolean {
+  const h = window.location.hostname;
+  return h === 'localhost' || h === '127.0.0.1' || h.endsWith('.local') || window.location.port !== '';
+}
+
+function isBot(): boolean {
+  const ua = navigator.userAgent.toLowerCase();
+  const botMarkers = [
+    'bot', 'spider', 'crawler', 'preview', 'lighthouse', 'headless',
+    'phantomjs', 'selenium', 'puppeteer', 'playwright', 'curl', 'wget',
+    'monitor', 'uptime', 'scrap',
+  ];
+  return botMarkers.some((p) => ua.includes(p)) || navigator.webdriver === true;
+}
+
+function readCache(): number {
+  try {
+    return parseInt(localStorage.getItem(CACHE_KEY) ?? '0', 10) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+function writeCache(value: number): void {
+  try {
+    localStorage.setItem(CACHE_KEY, String(value));
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+function animateCount(el: HTMLElement, start: number, end: number, duration = 900): void {
+  if (start === end) {
+    el.textContent = end.toLocaleString();
+    return;
+  }
+  const t0 = performance.now();
+  const tick = (now: number): void => {
+    const p = Math.min((now - t0) / duration, 1);
+    const eased = 1 - Math.pow(1 - p, 3);
+    el.textContent = Math.round(start + (end - start) * eased).toLocaleString();
+    if (p < 1) requestAnimationFrame(tick);
+    else el.textContent = end.toLocaleString();
+  };
+  requestAnimationFrame(tick);
+}
+
+function buildWidget(count: number): HTMLElement {
+  const wrap = document.createElement('div');
+  wrap.className = 'visitor-counter';
+  wrap.id = 'visitor-counter';
+  wrap.title = 'Total visits — live';
+  wrap.innerHTML = `
+    <span class="visitor-counter__pulse" aria-hidden="true">
+      <span class="visitor-counter__ping"></span>
+      <span class="visitor-counter__core"></span>
+    </span>
+    <span class="visitor-counter__label">VISITS</span>
+    <span class="visitor-counter__count" id="visitor-count-number" aria-live="polite">${count.toLocaleString()}</span>
+  `;
+  return wrap;
+}
+
+export async function initVisitorCounter(): Promise<void> {
+  const mount = document.getElementById('visitor-counter-mount');
+  if (!mount || mount.dataset.loaded === 'true') return;
+  mount.dataset.loaded = 'true';
+
+  const cached = readCache();
+  const widget = buildWidget(cached);
+  mount.appendChild(widget);
+  const countEl = document.getElementById('visitor-count-number');
+
+  const alreadyTracked = (() => {
+    try {
+      return sessionStorage.getItem(SESSION_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  })();
+
+  const shouldTrack = !isDev() && !isBot() && !alreadyTracked;
+  const endpoint = shouldTrack
+    ? `${VIEWS_BASE}/api/hit?project=${PROJECT}&key=${KEY}`
+    : `${VIEWS_BASE}/api/get?project=${PROJECT}&key=${KEY}`;
+  if (shouldTrack) {
+    try {
+      sessionStorage.setItem(SESSION_KEY, 'true');
+    } catch {
+      /* storage unavailable */
+    }
+  }
+
+  let current = cached;
+  try {
+    const res = await fetch(endpoint, { signal: AbortSignal.timeout(4000) });
+    if (res.ok) {
+      const data = (await res.json()) as { views?: number };
+      if (typeof data.views === 'number') current = data.views;
+    }
+  } catch {
+    /* offline / API down — keep cached value */
+  }
+
+  writeCache(current);
+  if (countEl) animateCount(countEl, cached, current);
+}
