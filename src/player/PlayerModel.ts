@@ -63,7 +63,6 @@ export class PlayerModel implements PlayerAvatar {
     hairMesh.position.y = TORSO_TOP + 0.21;
     hairMesh.scale.set(0.98, 1.05, 1.02);
     this.upper.add(hairMesh);
-
     this.leftArm = this.buildArm(1, skin, shirt);
     this.rightArm = this.buildArm(-1, skin, shirt);
     this.upper.add(this.leftArm, this.rightArm);

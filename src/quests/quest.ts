@@ -16,13 +16,18 @@ export interface Quest {
  */
 export const CHEARGI_WALK: Quest = {
   id: "cheragi-walk",
-  title: "The Cheragi Pahar Walk",
-  subtitle: "A short loop through old Chittagong",
+  title: "From the sea to the city",
+  subtitle: "A compact journey through Chittagong",
   stops: [
+    { landmark: "Patenga Sea Beach" },
+    { landmark: "Lalkhan Bazar · Expressway" },
+    { landmark: "Cheragi Pahar" },
+    { landmark: "DC Hill" },
+    { landmark: "Chittagong Buddhist Bihar" },
     { landmark: "Anderkilla Shahi Jame Masjid" },
-    { landmark: "Andarkilla Book Market" },
-    { landmark: "Chittagong City Corporation" },
-    { landmark: "Municipal Shopping Center" },
-    { landmark: "Kadam Mobarak Shahi Jame Mosque" },
+    { landmark: "Laldighi" },
+    { landmark: "Chittagong Court Building" },
+    { landmark: "Shah Amanat Bridge · Notun Bridge" },
+    { landmark: "Bahaddarhat" },
   ],
 };

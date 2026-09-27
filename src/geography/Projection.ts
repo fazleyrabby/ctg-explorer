@@ -1,9 +1,9 @@
-import { WORLD_CONFIG, type GeoCoordinate } from "@/config/WorldConfig";
+import { WORLD_CONFIG, DISTRICT_SCALE, type GeoCoordinate } from "@/config/WorldConfig";
 
 const METERS_PER_DEGREE_LAT = 111_320;
 
 /**
- * Converts WGS84 lat/lon into a local metric frame centered on WORLD_CONFIG.origin.
+ * Converts WGS84 lat/lon into a compressed local frame centered on WORLD_CONFIG.origin.
  *
  * This is a local equirectangular approximation, which is accurate enough for a
  * city-scale slice and keeps the projection deterministic and dependency-free.
@@ -11,9 +11,9 @@ const METERS_PER_DEGREE_LAT = 111_320;
  * touching call sites, because everything consumes LocalPoint.
  */
 export interface LocalPoint {
-  /** East/west, meters. +X = east. */
+  /** East/west, miniature world units. +X = east. */
   x: number;
-  /** North/south, meters. +Z = north (Three.js forward is -Z). */
+  /** North/south, miniature world units. +Z = north (Three.js forward is -Z). */
   z: number;
 }
 
@@ -21,11 +21,26 @@ export function metersPerDegreeLon(latitude: number): number {
   return METERS_PER_DEGREE_LAT * Math.cos((latitude * Math.PI) / 180);
 }
 
+// Piecewise cartographic compression: an expanded old town surrounded by short
+// coastal/northern corridors. Monotonic and invertible, so source links remain exact.
+const LAT_CORE = [22.333, 22.3465] as const;
+const LON_CORE = [91.827, 91.8395] as const;
+const OUTER_SCALE = 0.055;
+function compress(value: number, core: readonly [number, number]): number {
+  if (value < core[0]) return core[0] * DISTRICT_SCALE + (value-core[0]) * OUTER_SCALE;
+  if (value > core[1]) return core[1] * DISTRICT_SCALE + (value-core[1]) * OUTER_SCALE;
+  return value * DISTRICT_SCALE;
+}
+function expand(value: number, core: readonly [number, number]): number {
+  if (value < core[0]*DISTRICT_SCALE) return core[0] + (value-core[0]*DISTRICT_SCALE)/OUTER_SCALE;
+  if (value > core[1]*DISTRICT_SCALE) return core[1] + (value-core[1]*DISTRICT_SCALE)/OUTER_SCALE;
+  return value/DISTRICT_SCALE;
+}
 export function geoToLocal(coord: GeoCoordinate): LocalPoint {
   const lonScale = metersPerDegreeLon(WORLD_CONFIG.origin.latitude);
   return {
-    x: (coord.longitude - WORLD_CONFIG.origin.longitude) * lonScale,
-    z: (coord.latitude - WORLD_CONFIG.origin.latitude) * METERS_PER_DEGREE_LAT,
+    x: (compress(coord.longitude,LON_CORE) - compress(WORLD_CONFIG.origin.longitude,LON_CORE)) * lonScale,
+    z: (compress(coord.latitude,LAT_CORE) - compress(WORLD_CONFIG.origin.latitude,LAT_CORE)) * METERS_PER_DEGREE_LAT,
   };
 }
 
@@ -70,7 +85,7 @@ export function clampToWorld(x: number, z: number, margin = 0): [number, number]
 export function localToGeo(point: LocalPoint): GeoCoordinate {
   const lonScale = metersPerDegreeLon(WORLD_CONFIG.origin.latitude);
   return {
-    latitude: WORLD_CONFIG.origin.latitude + point.z / METERS_PER_DEGREE_LAT,
-    longitude: WORLD_CONFIG.origin.longitude + point.x / lonScale,
+    latitude: expand(compress(WORLD_CONFIG.origin.latitude,LAT_CORE) + point.z / METERS_PER_DEGREE_LAT,LAT_CORE),
+    longitude: expand(compress(WORLD_CONFIG.origin.longitude,LON_CORE) + point.x / lonScale,LON_CORE),
   };
 }

@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import type { HeightProvider } from "@/geography/WorldHeight";
 
-const BUILDINGS_PATH = "/world/chattogram/buildings/buildings.json";
+const BUILDINGS_PATH = "/world/chattogram/compact/buildings.json";
 
 const TYPE_COLORS: Record<string, number> = {
   residential: 0xcabfae,
@@ -21,7 +21,7 @@ const TYPE_COLORS: Record<string, number> = {
 
 const FLOOR_HEIGHT = 3;
 const PARAPET = 0.55;
-const ROOF_COLOR = 0x8f8578;
+const ROOF_COLOR = 0xd96948;
 const DOME_COLOR = 0xd8c48a;
 const MINARET_COLOR = 0xe0d6bd;
 
@@ -113,7 +113,10 @@ export class Buildings {
       const hash = hashString(building.id);
 
       color.setHex(TYPE_COLORS[building.type] ?? TYPE_COLORS.unknown!);
+      const palette = [0xffe3a6, 0xf4a185, 0x71c7ba, 0xc3b6dc, 0x8dcde3];
+      color.setHex(palette[hash % palette.length]!);
       applyVariation(color, hash);
+      if (building.name && building.type === "religious") color.setHex(0xe9dfc3);
 
       // Walls with window UVs (u along the wall, v by height).
       let u = 0;

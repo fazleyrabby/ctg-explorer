@@ -39,14 +39,12 @@ export interface WorldConfig {
 export const WORLD_CONFIG: WorldConfig = {
   city: "Chattogram",
   country: "Bangladesh",
-  // Compact playable district around Cheragi Pahar (ADR-0007, revised): a small
-  // world is easier to roam and mirrors a "little city" game. The district
-  // contains the buildings dataset plus a green margin.
+  // Wider city: the old city retains detail; outer corridors compress more strongly.
   bounds: {
-    north: 22.355,
-    south: 22.333,
-    east: 91.845,
-    west: 91.823,
+    north: 22.387,
+    south: 22.221,
+    east: 91.873,
+    west: 91.756,
   },
   origin: {
     latitude: 22.344,
@@ -57,11 +55,13 @@ export const WORLD_CONFIG: WorldConfig = {
     longitude: 91.8336,
   },
   curvature: {
-    mode: "spherical",
-    // Gentle bend over a ~30 km world. Real DEM elevation is the primary relief;
-    // curvature only adds a subtle curved horizon (ADR-0003).
+    mode: "flat",
+    // Flat miniature base with authored, gentle hill relief.
     radius: 3_000_000,
   },
   chunkSize: 500,
   seaLevel: 0,
 };
+
+/** Compress travel distances while retaining the geographic layout. */
+export const DISTRICT_SCALE = 0.45;

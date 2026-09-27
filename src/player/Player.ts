@@ -29,6 +29,7 @@ export class Player {
   private avatar: PlayerAvatar;
   private walkPhase = 0;
   private ridePhase = 0;
+  private idlePhase = 0;
 
   constructor() {
     this.position = new THREE.Vector3();
@@ -75,7 +76,8 @@ export class Player {
       }
     } else {
       this.walkPhase = 0;
-      this.avatar.animate(0, 0, airborne);
+      this.idlePhase += delta * 3;
+      this.avatar.animate(this.idlePhase, 0, airborne);
     }
   }
 

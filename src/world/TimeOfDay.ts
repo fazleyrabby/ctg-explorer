@@ -1,10 +1,10 @@
 import * as THREE from "three";
 
-const DAY = new THREE.Color(0x9fc4e8);
+const DAY = new THREE.Color(0x59bdf5);
 const SUNSET = new THREE.Color(0xef9d64);
 const NIGHT = new THREE.Color(0x0b1220);
 const SUN_WARM = new THREE.Color(0xff8a4a);
-const SUN_WHITE = new THREE.Color(0xfff3e0);
+const SUN_WHITE = new THREE.Color(0xfffcf3);
 const MOON = new THREE.Color(0x9fb4dd);
 
 function smoothstep(edge0: number, edge1: number, x: number): number {
@@ -24,8 +24,8 @@ export class TimeOfDay {
   private readonly sunDirection = new THREE.Vector3();
 
   constructor(
-    startHour = 7.5,
-    private readonly dayLengthSeconds = 480,
+    startHour = 10,
+    private readonly dayLengthSeconds = 2400,
   ) {
     this.hours = startHour;
   }
@@ -82,13 +82,13 @@ export class TimeOfDay {
 
   /** Smooth twilight falloff so sunset isn't an abrupt cliff. */
   get sunIntensity(): number {
-    const daylight = smoothstep(-0.08, 0.35, this.sunHeight) * 2.4;
+    const daylight = smoothstep(-0.08, 0.35, this.sunHeight) * 2.15;
     return this.isNight ? 0.45 : daylight;
   }
 
   get ambientIntensity(): number {
     // Night keeps a navigable floor; day rises smoothly.
-    return 0.48 + smoothstep(-0.2, 0.35, this.sunHeight) * 0.42;
+    return 0.7 + smoothstep(-0.2, 0.35, this.sunHeight) * 1.0;
   }
 
   /** "HH:MM" for the HUD. */

@@ -2,9 +2,9 @@ import * as THREE from "three";
 import type { NamedBuilding } from "@/world/Buildings";
 import type { HeightProvider } from "@/geography/WorldHeight";
 
-const MAX_DISTANCE = 400;
-const FADE_START = 260;
-const MAX_VISIBLE = 12;
+const MAX_DISTANCE = 6500;
+const FADE_START = 5500;
+const MAX_VISIBLE = 14;
 
 interface LabelItem {
   name: string;
@@ -38,6 +38,11 @@ export class WorldLabels {
       el.className = "world-label";
       el.textContent = building.name;
       if (onSelect) {
+        el.tabIndex = 0;
+        el.setAttribute("role", "button");
+        el.addEventListener("keydown", event => {
+          if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelect(building.name); }
+        });
         el.classList.add("world-label--clickable");
         el.addEventListener("click", () => onSelect(building.name));
       }
@@ -70,6 +75,7 @@ export class WorldLabels {
       .slice(0, MAX_VISIBLE);
     const visibleSet = new Set(visible);
 
+    const occupied: Array<{ x: number; y: number; width: number; height: number }> = [];
     for (const item of this.items) {
       if (!visibleSet.has(item)) {
         if (item.el.style.display !== "none") item.el.style.display = "none";
@@ -84,6 +90,17 @@ export class WorldLabels {
 
       const x = (this.projected.x * 0.5 + 0.5) * width;
       const y = (-this.projected.y * 0.5 + 0.5) * height;
+      if ((width < 760 && y < 280) || (width >= 760 && y < 190 && x < 320) || x < 60 || x > width-60 || y > height-80) {
+        item.el.style.display = "none"; continue;
+      }
+      // Suppress colliding labels; every destination remains in the visit menu.
+      const labelWidth = Math.min(width < 760 ? 165 : 290, item.name.length * 6 + 18);
+      const labelHeight = width < 760 && item.name.length > 24 ? 38 : 26;
+      if (occupied.some(r => Math.abs(r.x-x) < (r.width+labelWidth)/2 && Math.abs(r.y-y) < (r.height+labelHeight)/2)) {
+        item.el.style.display = "none";
+        continue;
+      }
+      occupied.push({x, y, width: labelWidth, height: labelHeight});
       const opacity =
         item.distance <= FADE_START
           ? 1

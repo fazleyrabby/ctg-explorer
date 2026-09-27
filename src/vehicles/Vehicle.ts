@@ -1,16 +1,14 @@
 import * as THREE from "three";
 import type { HeightProvider } from "@/geography/WorldHeight";
+import { shoreDistance } from "@/geography/CityGeography";
+import { richVehicle } from "@/world/RichVehicles";
 import { clampToWorld } from "@/geography/Projection";
 
 export type VehicleKind = "car" | "bicycle";
 
-const BODY = 0x2f6fb0;
-const BODY_DARK = 0x24405c;
-const GLASS = 0x9fc6e0;
 const TYRE = 0x1b1b1f;
 const RIM = 0xc9ccd2;
 const FRAME = 0xb0382f;
-const LIGHT = 0xffe9a8;
 
 interface VehicleSpec {
   maxSpeed: number;
@@ -47,7 +45,7 @@ export class Vehicle {
   constructor(kind: VehicleKind) {
     this.kind = kind;
     this.spec = SPECS[kind];
-    this.object = kind === "car" ? buildCar() : buildBicycle();
+    this.object = kind === "car" ? richVehicle("car", 0xffbd36) : buildBicycle();
     this.object.name = `Vehicle:${kind}`;
     this.object.visible = false;
 
@@ -104,7 +102,8 @@ export class Vehicle {
 
     const dx = Math.sin(this.heading) * this.speed * delta;
     const dz = Math.cos(this.heading) * this.speed * delta;
-    const [nextX, nextZ] = clampToWorld(this.position.x + dx, this.position.z + dz, 110);
+    const [nextX, nextZ] = clampToWorld(this.position.x + dx, this.position.z + dz, 12);
+    if(shoreDistance(nextX,nextZ)<2){this.speed=0;return;}
     this.position.set(nextX, getHeight(nextX, nextZ), nextZ);
 
     const wheelSpin = (this.speed / 0.33) * delta;
@@ -121,56 +120,6 @@ export class Vehicle {
     this.object.position.copy(this.position);
     this.object.rotation.y = this.heading;
   }
-}
-
-function buildCar(): THREE.Group {
-  const group = new THREE.Group();
-  const bodyMat = new THREE.MeshStandardMaterial({ color: BODY, roughness: 0.45, metalness: 0.15 });
-  const darkMat = new THREE.MeshStandardMaterial({ color: BODY_DARK, roughness: 0.6 });
-  const glassMat = new THREE.MeshStandardMaterial({ color: GLASS, roughness: 0.2, metalness: 0.1 });
-  const tyreMat = new THREE.MeshStandardMaterial({ color: TYRE, roughness: 0.85 });
-  const rimMat = new THREE.MeshStandardMaterial({ color: RIM, roughness: 0.4, metalness: 0.4 });
-  const lightMat = new THREE.MeshStandardMaterial({ color: LIGHT, emissive: LIGHT, emissiveIntensity: 0.6 });
-
-  const lower = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.55, 4.2), bodyMat);
-  lower.position.y = 0.62;
-  const upper = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.55, 2.2), glassMat);
-  upper.position.set(0, 1.05, -0.15);
-  const roof = new THREE.Mesh(new THREE.BoxGeometry(1.62, 0.12, 2.2), bodyMat);
-  roof.position.set(0, 1.36, -0.15);
-  const bumper = new THREE.Mesh(new THREE.BoxGeometry(1.82, 0.2, 0.3), darkMat);
-  bumper.position.set(0, 0.5, 2.1);
-
-  for (const mesh of [lower, upper, roof, bumper]) {
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    group.add(mesh);
-  }
-
-  for (const side of [1, -1]) {
-    const headlight = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.16, 0.1), lightMat);
-    headlight.position.set(side * 0.6, 0.72, 2.08);
-    group.add(headlight);
-  }
-
-  const wheelGeo = new THREE.CylinderGeometry(0.34, 0.34, 0.24, 16);
-  const rimGeo = new THREE.CylinderGeometry(0.16, 0.16, 0.26, 12);
-  for (const sx of [1, -1]) {
-    for (const sz of [1, -1]) {
-      const wheel = new THREE.Group();
-      wheel.position.set(sx * 0.88, 0.34, sz * 1.35);
-      const tyre = new THREE.Mesh(wheelGeo, tyreMat);
-      tyre.rotation.z = Math.PI / 2;
-      tyre.castShadow = true;
-      const rim = new THREE.Mesh(rimGeo, rimMat);
-      rim.rotation.z = Math.PI / 2;
-      wheel.add(tyre, rim);
-      wheel.userData.wheel = true;
-      group.add(wheel);
-    }
-  }
-
-  return group;
 }
 
 function buildBicycle(): THREE.Group {

@@ -1,130 +1,38 @@
-import * as THREE from "three";
-import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import type { HeightProvider } from "@/geography/WorldHeight";
-import type { RoadData } from "@/world/Roads";
-import { buildPaths, samplePath, type Path } from "@/world/RoadPath";
-
-const COUNT = 90;
-const SIDEWALK = 1.3;
-const MIN_SPEED = 1.0;
-const MAX_SPEED = 1.7;
-const SHIRTS = [0xd94f4f, 0x4f7fd9, 0x4fd98a, 0xd9c14f, 0xd97f4f, 0x9a4fd9, 0xf0f0f0];
-
-interface Walker {
-  path: number;
-  distance: number;
-  side: number;
-  dir: number;
-  speed: number;
-  phase: number;
-}
-
-/**
- * Simple cartoon pedestrians walking the sidewalks (spec §43).
- *
- * Instanced: legs, torso and head are three InstancedMeshes sharing per-instance
- * matrices, updated each frame. Shirts vary via instanceColor. No skeletal
- * animation — a bob sells the walk at street distance.
- */
+import * as THREE from 'three';
+import type {HeightProvider} from '@/geography/WorldHeight';
+import type {RoadData} from '@/world/Roads';
+import {buildPaths,samplePath,type Path} from '@/world/RoadPath';
+const COUNT=72;
+interface Walker {path:Path;distance:number;phase:number;side:number;speed:number}
 export class Pedestrians {
-  readonly object: THREE.Group;
-
-  private readonly paths: Path[];
-  private readonly walkers: Walker[] = [];
-  private readonly lower: THREE.InstancedMesh;
-  private readonly torso: THREE.InstancedMesh;
-  private readonly head: THREE.InstancedMesh;
-
-  private readonly matrix = new THREE.Matrix4();
-  private readonly quat = new THREE.Quaternion();
-  private readonly scale = new THREE.Vector3(1, 1, 1);
-  private readonly position = new THREE.Vector3();
-  private time = 0;
-
-  constructor(roads: RoadData[], private readonly getHeight: HeightProvider) {
-    this.object = new THREE.Group();
-    this.object.name = "Pedestrians";
-    this.paths = buildPaths(roads);
-
-    const legsGeo = mergeGeometries([
-      new THREE.BoxGeometry(0.16, 0.72, 0.17).translate(0.11, 0.36, 0),
-      new THREE.BoxGeometry(0.16, 0.72, 0.17).translate(-0.11, 0.36, 0),
-    ])!;
-    const torsoGeo = new THREE.CapsuleGeometry(0.2, 0.5, 4, 10).translate(0, 1.16, 0);
-    const headGeo = new THREE.SphereGeometry(0.16, 12, 10).translate(0, 1.72, 0);
-
-    const legsMat = new THREE.MeshStandardMaterial({ color: 0x33384a, roughness: 0.9 });
-    const torsoMat = new THREE.MeshStandardMaterial({ roughness: 0.85 });
-    const headMat = new THREE.MeshStandardMaterial({ color: 0xcf9b74, roughness: 0.8 });
-
-    this.lower = new THREE.InstancedMesh(legsGeo, legsMat, COUNT);
-    this.torso = new THREE.InstancedMesh(torsoGeo, torsoMat, COUNT);
-    this.head = new THREE.InstancedMesh(headGeo, headMat, COUNT);
-
-    const color = new THREE.Color();
-    for (const mesh of [this.lower, this.torso, this.head]) {
-      mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-      mesh.castShadow = true;
-      mesh.frustumCulled = false;
-    }
-    for (let i = 0; i < COUNT; i++) {
-      color.setHex(SHIRTS[i % SHIRTS.length]!);
-      this.torso.setColorAt(i, color);
-    }
-    if (this.torso.instanceColor) this.torso.instanceColor.needsUpdate = true;
-
-    this.object.add(this.lower, this.torso, this.head);
-
-    for (let i = 0; i < COUNT; i++) {
-      if (this.paths.length === 0) break;
-      this.walkers.push({
-        path: i % this.paths.length,
-        distance: Math.random() * 1e6,
-        side: Math.random() < 0.5 ? 1 : -1,
-        dir: Math.random() < 0.5 ? 1 : -1,
-        speed: MIN_SPEED + Math.random() * (MAX_SPEED - MIN_SPEED),
-        phase: Math.random() * Math.PI * 2,
-      });
-    }
+ readonly object=new THREE.Group();private readonly walkers:Walker[]=[];private time=0;
+ private readonly parts:Array<{mesh:THREE.InstancedMesh;part:string}>=[];
+ constructor(roads:RoadData[],private readonly ground:HeightProvider){
+  this.object.name='Pedestrians';const paths=buildPaths(roads,35);
+  const part=(name:string,geo:THREE.BufferGeometry,color:number)=>{const mesh=new THREE.InstancedMesh(geo,new THREE.MeshStandardMaterial({color,roughness:.8}),paths.length?COUNT:0);mesh.frustumCulled=false;mesh.castShadow=true;mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);this.object.add(mesh);this.parts.push({mesh,part:name});return mesh;};
+  const torso=part('torso',new THREE.CapsuleGeometry(.25,.5,4,8),0xffffff);
+  part('head',new THREE.SphereGeometry(.19,10,8),0xffffff);
+  part('hair',new THREE.SphereGeometry(.2,8,6,0,Math.PI*2,0,Math.PI*.5),0x30233c);
+  part('legL',new THREE.CapsuleGeometry(.1,.58,4,8).translate(0,-.38,0),0x244e73);
+  part('legR',new THREE.CapsuleGeometry(.1,.58,4,8).translate(0,-.38,0),0x244e73);
+  part('armL',new THREE.CapsuleGeometry(.075,.5,4,8).translate(0,-.3,0),0xdba47c);
+  part('armR',new THREE.CapsuleGeometry(.075,.5,4,8).translate(0,-.3,0),0xdba47c);
+  const shirts=[0xff6b59,0xffcc45,0x28cba4,0x3d9af1,0xd16dec,0xff8bb3],skin=[0xe5b38a,0xb97751,0xc78b60];
+  for(let i=0;i<COUNT&&paths.length;i++){
+   this.walkers.push({path:paths[i%paths.length]!,distance:i*51.37,phase:i*2.3,side:i%2?1:-1,speed:1.2+i%4*.18});torso.setColorAt(i,new THREE.Color(shirts[i%shirts.length]!));this.parts.find(p=>p.part==='head')!.mesh.setColorAt(i,new THREE.Color(skin[i%skin.length]!));
   }
-
-  update(delta: number): void {
-    this.time += delta;
-    for (let i = 0; i < this.walkers.length; i++) {
-      const walker = this.walkers[i]!;
-      const path = this.paths[walker.path]!;
-      walker.distance += walker.speed * delta;
-      const d = ((walker.distance % (path.total * 2)) + path.total * 2) % (path.total * 2);
-      const along = d <= path.total ? d : path.total * 2 - d;
-      const forward = d <= path.total ? 1 : -1;
-
-      const sample = samplePath(path, along);
-      const nx = -Math.sin(sample.yaw) * 0;
-      const offset = this.sidewalkOffset(path, walker.side) + 0.2;
-      const dirX = Math.sin(sample.yaw);
-      const dirZ = Math.cos(sample.yaw);
-      const px = sample.x + -dirZ * offset;
-      const pz = sample.z + dirX * offset;
-
-      this.quat.setFromAxisAngle(UP, sample.yaw + (forward < 0 ? Math.PI : 0));
-      const bob = Math.abs(Math.sin(this.time * 6 + walker.phase)) * 0.05;
-      this.position.set(px, this.getHeight(px, pz) + bob, pz);
-      this.matrix.compose(this.position, this.quat, this.scale);
-      this.lower.setMatrixAt(i, this.matrix);
-      this.torso.setMatrixAt(i, this.matrix);
-      this.head.setMatrixAt(i, this.matrix);
-      void nx;
-      void walker.dir;
-    }
-    this.lower.instanceMatrix.needsUpdate = true;
-    this.torso.instanceMatrix.needsUpdate = true;
-    this.head.instanceMatrix.needsUpdate = true;
+  this.update(0);
+ }
+ update(delta:number):void{
+  this.time+=delta;const base=new THREE.Matrix4(),local=new THREE.Matrix4(),out=new THREE.Matrix4(),q=new THREE.Quaternion(),pos=new THREE.Vector3(),scale=new THREE.Vector3(1.15,1.15,1.15),rot=new THREE.Quaternion();
+  for(let i=0;i<this.walkers.length;i++){
+   const w=this.walkers[i]!;w.distance+=delta*w.speed;const cycle=w.distance%(w.path.total*2),forward=cycle<w.path.total,d=forward?cycle:w.path.total*2-cycle,p=samplePath(w.path,d);
+   const offset=(w.path.width/2+2)*w.side,x=p.x-Math.cos(p.yaw)*offset,z=p.z+Math.sin(p.yaw)*offset,phase=this.time*w.speed*5+w.phase,swing=Math.sin(phase)*.55;
+   q.setFromAxisAngle(new THREE.Vector3(0,1,0),p.yaw+(forward?0:Math.PI));base.compose(pos.set(x,this.ground(x,z)+Math.abs(Math.sin(phase))*.04,z),q,scale);
+   for(const part of this.parts){let y=1.22,px=0,angle=0;if(part.part==='head')y=1.88;if(part.part==='hair')y=1.94;if(part.part.startsWith('leg')){y=.88;px=part.part==='legL'?.13:-.13;angle=swing*Math.sign(px);}if(part.part.startsWith('arm')){y=1.53;px=part.part==='armL'?.34:-.34;angle=-swing*Math.sign(px);}
+     rot.setFromAxisAngle(new THREE.Vector3(1,0,0),angle);local.compose(pos.set(px,y,0),rot,new THREE.Vector3(1,1,1));out.multiplyMatrices(base,local);part.mesh.setMatrixAt(i,out);
+   }
   }
-
-  private sidewalkOffset(path: Path, side: number): number {
-    void path;
-    return SIDEWALK * side;
-  }
+  this.parts.forEach(p=>{p.mesh.instanceMatrix.needsUpdate=true;});
+ }
 }
-
-const UP = new THREE.Vector3(0, 1, 0);

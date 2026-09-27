@@ -76,7 +76,8 @@ export class StreetProps {
 
     this.object.add(buildPoles(poles));
     this.object.add(buildTrees(trees));
-    this.object.add(buildWires(poles));
+    // Wires are intentionally omitted in the miniature district.
+    void buildWires;
   }
 }
 

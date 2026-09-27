@@ -1,18 +1,22 @@
-import { surfaceHeight } from "@/geography/Curvature";
-import type { TerrainHeightfield } from "@/world/TerrainHeightfield";
+import { shoreDistance } from "@/geography/CityGeography";
+import { geoToLocal } from "@/geography/Projection";
 
-/** Returns world-space ground height (curvature + terrain elevation) at x/z. */
 export type HeightProvider = (x: number, z: number) => number;
 
-/**
- * Combines the curved globe surface (spec §5) with DEM elevation (spec §18).
- * Before terrain loads, callers get the bare curved surface.
- */
-export function createHeightProvider(
-  heightfield?: TerrainHeightfield,
-): HeightProvider {
-  if (!heightfield) {
-    return (x, z) => surfaceHeight(x, z);
-  }
-  return (x, z) => surfaceHeight(x, z) + heightfield.sampleLocal(x, z);
+// Authored relief preserves the two recognizable hills without draping roads
+// over noisy 30 m DEM cells. All renderers and movement use this same surface.
+const hills = [
+  { ...geoToLocal({latitude:22.341944, longitude:91.831944}), rise:8, radius:58 },
+  { ...geoToLocal({latitude:22.33483, longitude:91.83461}), rise:6, radius:42 },
+];
+export function createHeightProvider(): HeightProvider {
+  return (x,z) => {
+    const shore=shoreDistance(x,z);
+    if(shore<0) return Math.max(-3, .15+shore*.55);
+    const base=2 + Math.min(1,shore/12)*2;
+    return base + hills.reduce((height,hill) => {
+    const r2=((x-hill.x)**2+(z-hill.z)**2)/(hill.radius**2);
+    return height+hill.rise*Math.exp(-r2);
+  },0);
+  };
 }

@@ -64,7 +64,16 @@ export class LandmarkDetails {
       band(buf, color, outset(ring, 0.8, centroid), baseLevel - 0.3, baseLevel + 1.0, centroid);
       band(buf, color, outset(ring, 0.5, centroid), topLevel - 0.8, topLevel + 0.3, centroid);
 
-      if (type === "religious") {
+      if (landmark.name.includes("Buddhist")) {
+        // A stepped temple roof, rather than the mosque treatment.
+        const red = new THREE.Color(0xa95643);
+        for (let tier = 0; tier < 3; tier++) {
+          const width = Math.max(4, size * (1.1 - tier * .22));
+          box(buf, red, [centroid[0], topLevel + tier * 2 + .5, centroid[1]], [width, .8, width]);
+          box(buf, color, [centroid[0], topLevel + tier * 2 + 1.2, centroid[1]], [width * .65, 1, width * .65]);
+        }
+        cylinder(buf, new THREE.Color(DOME), centroid[0], centroid[1], topLevel + 6, 3, .35, 8);
+      } else if (type === "religious") {
         religiousDetails(buf, landmark, ring, ground, topLevel, centroid, size);
       } else {
         civicDetails(buf, ring, ground, topLevel, centroid, size, color);

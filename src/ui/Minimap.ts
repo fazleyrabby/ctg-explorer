@@ -1,9 +1,11 @@
+import {localWorldBounds} from "@/geography/Projection";
+import {shoreDistance} from "@/geography/CityGeography";
 import type { BuildingData, NamedBuilding } from "@/world/Buildings";
 import type { RoadData } from "@/world/Roads";
 import type { Player } from "@/player/Player";
 
-const SMALL = { size: 240, span: 520 };
-const LARGE = { size: 640, span: 1500 };
+const SMALL = { size: 190, span: 400 };
+const LARGE = { size: 400, span: 1800 };
 const MARGIN = 300;
 
 interface Pin {
@@ -75,6 +77,8 @@ export class Minimap {
       minZ = -1000;
       maxZ = 1000;
     }
+    const bounds=localWorldBounds();
+    minX=bounds.minX;maxX=bounds.maxX;minZ=bounds.minZ;maxZ=bounds.maxZ;
     this.minX = minX - MARGIN;
     this.maxZ = maxZ + MARGIN;
     this.staticW = Math.ceil(maxX - minX + MARGIN * 2);
@@ -94,6 +98,7 @@ export class Minimap {
   }
 
   private applySize(): void {
+    this.size = Math.min(this.large ? LARGE.size : SMALL.size, window.innerWidth - 32);
     const dpr = Math.min(window.devicePixelRatio, 2);
     this.canvas.width = this.size * dpr;
     this.canvas.height = this.size * dpr;
@@ -143,7 +148,11 @@ export class Minimap {
     ctx.fillStyle = "#cdd5c2";
     ctx.fillRect(0, 0, this.staticW, this.staticH);
 
-    ctx.fillStyle = "#b7ab97";
+    for(let x=0;x<this.staticW;x+=12)for(let y=0;y<this.staticH;y+=12){
+      const d=shoreDistance(x+this.minX,this.maxZ-y);
+      ctx.fillStyle=d<0?"#209cbe":d<14?"#ffe2a0":"#91d876";ctx.fillRect(x,y,12,12);
+    }
+    ctx.fillStyle = "#eaa168";
     for (const b of buildings) {
       ctx.beginPath();
       for (let i = 0; i < b.ring.length; i++) {

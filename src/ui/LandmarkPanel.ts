@@ -58,7 +58,9 @@ export class LandmarkPanel {
     this.root.hidden = false;
 
     const geo = localToGeo({ x: landmark.x, z: landmark.z });
-    const osmUrl = `https://www.openstreetmap.org/${landmark.id}`;
+    const osmUrl = /^(way|node|relation)\/\d+$/.test(landmark.id)
+      ? `https://www.openstreetmap.org/${landmark.id}`
+      : `https://www.openstreetmap.org/?mlat=${geo.latitude}&mlon=${geo.longitude}#map=18/${geo.latitude}/${geo.longitude}`;
 
     this.nameEl.textContent = landmark.name;
     this.metaEl.textContent = `${titleCase(landmark.type)} · ${geo.latitude.toFixed(5)}, ${geo.longitude.toFixed(5)}`;

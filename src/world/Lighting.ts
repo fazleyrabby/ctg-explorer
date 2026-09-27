@@ -11,11 +11,11 @@ export class Lighting {
   /** World size of one shadow-map texel; used to snap the sun and avoid shimmer. */
   readonly shadowTexel: number;
 
-  constructor(sceneSize = 6000) {
+  constructor(sceneSize = 2400) {
     this.object = new THREE.Group();
     this.object.name = "Lighting";
 
-    const hemisphere = new THREE.HemisphereLight(0xbfd8ff, 0x4a5a3a, 0.9);
+    const hemisphere = new THREE.HemisphereLight(0xf2faff, 0xc5cfb2, 1.3);
     this.hemisphere = hemisphere;
     this.object.add(hemisphere);
 
@@ -27,7 +27,7 @@ export class Lighting {
     sun.shadow.camera.far = 6000;
     // normalBias removes shadow acne on large, low-resolution shadow maps.
     sun.shadow.bias = -0.0005;
-    sun.shadow.normalBias = 2.5;
+    sun.shadow.normalBias = 0.6;
 
     const extent = Math.min(sceneSize / 4, 1200);
     const cam = sun.shadow.camera as THREE.OrthographicCamera;

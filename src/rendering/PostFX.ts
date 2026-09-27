@@ -14,12 +14,12 @@ import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 const GradeShader = {
   uniforms: {
     tDiffuse: { value: null as THREE.Texture | null },
-    uAberration: { value: 0.6 },
-    uTilt: { value: 0.45 },
+    uAberration: { value: 0 },
+    uTilt: { value: 0 },
     uFocus: { value: 0.5 },
     uSaturation: { value: 1.06 },
     uContrast: { value: 1.05 },
-    uVignette: { value: 0.55 },
+    uVignette: { value: 0.12 },
   },
   vertexShader: /* glsl */ `
     varying vec2 vUv;
@@ -118,7 +118,7 @@ export class PostFX {
     this.composer.addPass(new OutputPass());
   }
 
-  private enabled = true;
+  private enabled = false;
 
   /** Points the whole stack at a different camera (follow <-> globe overview). */
   setCamera(camera: THREE.Camera): void {

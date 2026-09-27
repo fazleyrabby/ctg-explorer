@@ -24,6 +24,10 @@ export class Input {
   private pointerDeltaX = 0;
   private pointerDeltaY = 0;
   private wheelDelta = 0;
+  private orbitDrag = false;
+  private orbitDeltaX = 0;
+  private orbitDeltaY = 0;
+  private viewportHeight = 1;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     this.bind(window, "keydown", this.onKeyDown as EventListener);
@@ -33,6 +37,7 @@ export class Input {
     this.bind(canvas, "pointerdown", this.onPointerDown as EventListener);
     this.bind(window, "pointermove", this.onPointerMove as EventListener);
     this.bind(window, "pointerup", this.onPointerUp as EventListener);
+    this.bind(window, "pointercancel", this.onPointerUp as EventListener);
     this.bind(canvas, "contextmenu", ((e: Event) =>
       e.preventDefault()) as EventListener);
     this.bind(canvas, "wheel", this.onWheel as EventListener, { passive: false });
@@ -65,10 +70,14 @@ export class Input {
   private onBlur = (): void => {
     this.keys.clear();
     this.dragging = false;
+    this.pointerDeltaX = this.pointerDeltaY = this.orbitDeltaX = this.orbitDeltaY = 0;
+    this.wheelDelta = 0;
   };
 
   private onPointerDown = (e: PointerEvent): void => {
     this.dragging = true;
+    this.orbitDrag = e.button !== 0 || e.shiftKey;
+    this.viewportHeight = this.canvas.clientHeight;
     this.lastX = e.clientX;
     this.lastY = e.clientY;
     this.canvas.setPointerCapture(e.pointerId);
@@ -76,8 +85,10 @@ export class Input {
 
   private onPointerMove = (e: PointerEvent): void => {
     if (!this.dragging) return;
-    this.pointerDeltaX += e.clientX - this.lastX;
-    this.pointerDeltaY += e.clientY - this.lastY;
+    const dx = e.clientX - this.lastX, dy = e.clientY - this.lastY;
+    this.pointerDeltaX += dx;
+    this.pointerDeltaY += dy;
+    if (this.orbitDrag) { this.orbitDeltaX += dx; this.orbitDeltaY += dy; }
     this.lastX = e.clientX;
     this.lastY = e.clientY;
   };
@@ -126,9 +137,16 @@ export class Input {
 
   consumePointerDelta(): { x: number; y: number } {
     const delta = { x: this.pointerDeltaX, y: this.pointerDeltaY };
+    this.orbitDeltaX = this.orbitDeltaY = 0;
     this.pointerDeltaX = 0;
     this.pointerDeltaY = 0;
     return delta;
+  }
+
+  consumeOverviewDelta(): { panX: number; panY: number; orbitX: number; orbitY: number; height: number } {
+    const result = { panX: this.pointerDeltaX-this.orbitDeltaX, panY: this.pointerDeltaY-this.orbitDeltaY, orbitX: this.orbitDeltaX, orbitY: this.orbitDeltaY, height: this.viewportHeight };
+    this.pointerDeltaX = this.pointerDeltaY = this.orbitDeltaX = this.orbitDeltaY = 0;
+    return result;
   }
 
   consumeWheelDelta(): number {

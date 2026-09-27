@@ -11,7 +11,9 @@
     "typecheck": "tsc --noEmit",
     "world:dem": "tsx scripts/fetch-dem.ts",
     "world:roads": "tsx scripts/fetch-roads.ts",
-    "world:buildings": "tsx scripts/fetch-buildings.ts"
+    "world:buildings": "tsx scripts/fetch-buildings.ts",
+    "world:compact": "node --import tsx scripts/curate-city.ts",
+    "test:world": "node --import tsx scripts/test-district.ts"
   },
   "dependencies": {
     "three": "^0.180.0"

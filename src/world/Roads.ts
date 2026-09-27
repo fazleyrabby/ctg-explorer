@@ -1,152 +1,56 @@
-import * as THREE from "three";
-import type { HeightProvider } from "@/geography/WorldHeight";
-
-const ROADS_PATH = "/world/chattogram/roads/roads.json";
-// Roads sit almost flush with the terrain so the avatar stands on them. A small
-// lift plus polygon offset avoids z-fighting without visibly raising the surface.
-const SURFACE_OFFSET = 0.05;
-// Mid slate-grey, not near-black: at grazing angles the road fills much of the
-// frame, and a very dark albedo (plus vignette/contrast) read as a hole in the
-// world. This keeps junctions legible as pavement.
-const ASPHALT_COLOR = 0x51515a;
-const CENTER_LINE_WIDTH = 0.5;
-const CENTER_LINE_TYPES = new Set(["motorway", "trunk", "primary", "secondary"]);
+import * as THREE from 'three';
+import type { HeightProvider } from '@/geography/WorldHeight';
 
 export interface RoadData {
-  id: string;
-  type: string;
-  name?: string;
-  bridge: boolean;
-  tunnel: boolean;
-  width: number;
-  points: Array<[number, number]>;
+  id: string; type: string; name?: string; bridge: boolean; tunnel: boolean;
+  width: number; points: Array<[number,number]>;
 }
+interface Buffers {positions:number[];indices:number[]}
 
-interface RoadsFile {
-  attribution: string;
-  roads: RoadData[];
-}
-
-type Point = [number, number];
-
-/**
- * Real OSM road network rendered as 3D ribbons draped on the terrain (spec §10,
- * §11). All asphalt and all center lines are merged into single geometries to
- * keep draw calls low (spec §38).
- */
-export class Roads {
-  readonly object: THREE.Group;
-  readonly roads: RoadData[];
-
-  private constructor(object: THREE.Group, roads: RoadData[]) {
-    this.object = object;
-    this.roads = roads;
-  }
-
-  static async load(getHeight: HeightProvider): Promise<Roads> {
-    const response = await fetch(ROADS_PATH);
-    if (!response.ok) throw new Error(`Failed to load roads: ${response.status}`);
-    const data = (await response.json()) as RoadsFile;
-
-    const group = new THREE.Group();
-    group.name = "Roads";
-
-    const asphalt = { positions: [] as number[], indices: [] as number[] };
-    const markings = { positions: [] as number[], indices: [] as number[] };
-
-    for (const road of data.roads) {
-      if (road.points.length < 2) continue;
-      const half = road.width / 2;
-      const { left, right } = offsetPolyline(road.points, half);
-      addRibbon(asphalt, left, right, getHeight, SURFACE_OFFSET);
-
-      if (CENTER_LINE_TYPES.has(road.type)) {
-        const line = offsetPolyline(road.points, CENTER_LINE_WIDTH / 2);
-        addRibbon(markings, line.left, line.right, getHeight, SURFACE_OFFSET + 0.05);
+/** Independent short quads and round joins cannot fold over at acute corners. */
+export function buildRoadGeometry(roads:RoadData[],height:HeightProvider,padding=0,lift=.12):THREE.BufferGeometry {
+  const b:Buffers={positions:[],indices:[]};
+  const vertex=(x:number,z:number)=>{const i=b.positions.length/3;b.positions.push(x,height(x,z)+lift,z);return i;};
+  for(const road of roads) {
+    const half=road.width/2+padding;
+    if(half<=0)continue;
+    for(let i=1;i<road.points.length;i++) {
+      const a=road.points[i-1]!,c=road.points[i]!;
+      const dx=c[0]-a[0],dz=c[1]-a[1],length=Math.hypot(dx,dz);
+      if(length<.001)continue;
+      const nx=-dz/length*half,nz=dx/length*half,steps=Math.ceil(length/2);
+      for(let j=0;j<steps;j++) {
+        const x=a[0]+dx*j/steps,z=a[1]+dz*j/steps;
+        const ex=a[0]+dx*(j+1)/steps,ez=a[1]+dz*(j+1)/steps;
+        const v=vertex(x+nx,z+nz);vertex(x-nx,z-nz);vertex(ex+nx,ez+nz);vertex(ex-nx,ez-nz);
+        b.indices.push(v,v+2,v+1,v+1,v+2,v+3);
       }
     }
-
-    const asphaltMesh = buildMesh(asphalt, ASPHALT_COLOR, 0);
-    asphaltMesh.name = "RoadAsphalt";
-    asphaltMesh.receiveShadow = true;
-    group.add(asphaltMesh);
-
-    const markingMesh = buildMesh(markings, 0xd8d8cc, 1);
-    markingMesh.name = "RoadMarkings";
-    group.add(markingMesh);
-
-    return new Roads(group, data.roads);
+    // Round joins include the closing vertex of roundabouts and dead-end caps.
+    for(const [x,z] of road.points) {
+      const center=vertex(x,z),segments=16;
+      for(let i=0;i<=segments;i++){const angle=i/segments*Math.PI*2;vertex(x+Math.cos(angle)*half,z+Math.sin(angle)*half);}
+      for(let i=0;i<segments;i++)b.indices.push(center,center+i+2,center+i+1);
+    }
   }
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.Float32BufferAttribute(b.positions,3));g.setIndex(b.indices);g.computeVertexNormals();return g;
 }
-
-function offsetPolyline(points: Point[], half: number): { left: Point[]; right: Point[] } {
-  const left: Point[] = [];
-  const right: Point[] = [];
-  for (let i = 0; i < points.length; i++) {
-    const prev = points[i - 1] ?? points[i]!;
-    const next = points[i + 1] ?? points[i]!;
-    const dx = next[0] - prev[0];
-    const dz = next[1] - prev[1];
-    const len = Math.hypot(dx, dz);
-    const nx = len > 1e-6 ? -dz / len : 0;
-    const nz = len > 1e-6 ? dx / len : 0;
-    const [x, z] = points[i]!;
-    left.push([x + nx * half, z + nz * half]);
-    right.push([x - nx * half, z - nz * half]);
+export class Roads {
+  private constructor(readonly object:THREE.Group,readonly roads:RoadData[]){}
+  static async load(height:HeightProvider):Promise<Roads> {
+    const response=await fetch('/world/chattogram/compact/roads.json');
+    if(!response.ok)throw new Error(`Failed to load district roads: ${response.status}`);
+    const {roads}=await response.json() as {roads:RoadData[]};
+    const group=new THREE.Group();group.name='Roads';
+    const add=(geometry:THREE.BufferGeometry,color:number,name:string,order:number)=>{
+      const mesh=new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({color,roughness:.95,polygonOffset:true,polygonOffsetFactor:-order,polygonOffsetUnits:-order}));
+      mesh.name=name;mesh.receiveShadow=true;mesh.renderOrder=order;group.add(mesh);
+    };
+    add(buildRoadGeometry(roads,height,3.2,.08),0xf5e9ca,'RoadShoulders',1);
+    add(buildRoadGeometry(roads,height),0x435666,'RoadAsphalt',2);
+    const lines=roads.filter(r=>r.width>=4.5&&!r.name?.includes('Circle')).map(r=>({...r,width:.16}));
+    add(buildRoadGeometry(lines,height,0,.16),0xfff3ce,'RoadMarkings',3);
+    return new Roads(group,roads);
   }
-  return { left, right };
-}
-
-interface Buffers {
-  positions: number[];
-  indices: number[];
-}
-
-function addRibbon(
-  buffers: Buffers,
-  left: Point[],
-  right: Point[],
-  getHeight: HeightProvider,
-  yOffset: number,
-): void {
-  const base = buffers.positions.length / 3;
-  for (let i = 0; i < left.length; i++) {
-    const [lx, lz] = left[i]!;
-    const [rx, rz] = right[i]!;
-    buffers.positions.push(lx, getHeight(lx, lz) + yOffset, lz);
-    buffers.positions.push(rx, getHeight(rx, rz) + yOffset, rz);
-  }
-  for (let i = 0; i < left.length - 1; i++) {
-    const a = base + i * 2;
-    const b = a + 1;
-    const c = a + 2;
-    const d = a + 3;
-    // Wind so the ribbon's normals point UP (+Y). The other winding made every
-    // road face downward, which GTAO read as fully occluded -> black patches.
-    buffers.indices.push(a, c, b, b, c, d);
-  }
-}
-
-function buildMesh(buffers: Buffers, color: number, renderOrder: number): THREE.Mesh {
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute(
-    "position",
-    new THREE.BufferAttribute(new Float32Array(buffers.positions), 3),
-  );
-  geometry.setIndex(buffers.indices);
-  geometry.computeVertexNormals();
-
-  const material = new THREE.MeshStandardMaterial({
-    color,
-    roughness: 0.85,
-    metalness: 0.0,
-    side: THREE.DoubleSide,
-    polygonOffset: true,
-    polygonOffsetFactor: -3,
-    polygonOffsetUnits: -3,
-  });
-
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.renderOrder = renderOrder;
-  return mesh;
 }

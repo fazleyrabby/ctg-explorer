@@ -464,3 +464,52 @@ body,
   font-size: 12px;
   opacity: 0.7;
 }
+
+/* The world is the focus; compact, quiet controls remain at its edges. */
+:root { font-family: "Avenir Next", Avenir, sans-serif; }
+.hud__title { top: 24px; left: 28px; font-size: 26px; letter-spacing: -.03em; color: #203d39; text-shadow: none; }
+.hud__district { position: absolute; top: 60px; left: 28px; color: #294740; font-size: 12px; text-shadow: none; }
+.hud__stats { display: none; }
+.hud__quest { top: 98px; left: 28px; width: 250px; background: #f7f2e8; color: #294740; border: 0; box-shadow: 0 4px 16px #203d3914; text-shadow: none; }
+.hud__controls { pointer-events: auto; bottom: 47px; left: 28px; padding: 10px 14px; max-width: min(540px, calc(100vw - 56px)); font-size: 12px; color: #263f39; background: #f7f2e8; border-radius: 8px; opacity: 1; text-shadow: none; }
+.hud__controls summary { cursor: pointer; font-weight: 600; }
+.hud__controls p { margin: 8px 0; }
+.district-controls { position: fixed; top: 24px; right: 28px; display: flex; gap: 8px; z-index: 5; }
+.district-controls button, .district-controls select { min-height: 44px; padding: 10px 14px; border: 0; border-radius: 8px; background: #f7f2e8; color: #203d39; font: inherit; font-size: 13px; cursor: pointer; box-shadow: 0 3px 12px #203d3914; }
+.district-controls button:first-child { background: #254e44; color: #fffaf1; }
+.district-controls button:hover { filter: brightness(1.08); }
+.district-controls select { max-width: 215px; }
+:focus-visible { outline: 3px solid #b57931; outline-offset: 3px; }
+.district-credit { position: absolute; bottom: 18px; left: 28px; font-size: 10px; color: #26423b; text-shadow: none; pointer-events: auto; }
+.district-credit a { color: inherit; text-underline-offset: 3px; }
+.is-overview .minimap, .is-overview .hud__prompt { display: none; }
+.world-label { background: #f7f2e8; color: #263f39; border: 0; padding: 5px 9px; box-shadow: 0 2px 7px #203d3920; font-size: 11px; }
+.world-label--clickable:hover { background: #e5d8be; }
+@media (max-width: 760px) {
+  .hud__title { left: 18px; top: 18px; font-size: 24px; }
+  .hud__district { left: 18px; top: 50px; font-size: 11px; }
+  .district-controls { top: 80px; left: 18px; right: 18px; flex-wrap: wrap; gap: 6px; }
+  .district-controls button, .district-controls select { font-size: 12px; padding: 9px 11px; }
+  .district-controls button:last-child { display: none; }
+  .district-controls select { flex: 1; max-width: none; min-width: 0; }
+  .hud__quest { left: 18px; top: 140px; width: 235px; font-size: 11px; }
+  .hud__controls { left: 18px; bottom: 46px; z-index: 5; max-width: calc(100vw - 36px); }
+  .district-credit { left: 18px; right: 18px; bottom: 16px; font-size: 9px; }
+  .minimap { bottom: 100px; right: 18px; }
+  .world-label { font-size: 10px; max-width: 165px; white-space: normal; text-align: center; }
+}
+.hud__quest-progress { color: #65501f; }
+.hud__title, .hud__district { background: #f7f2e8; padding: 3px 8px; border-radius: 4px; }
+@media (max-width: 760px) {
+  .hud__quest { top: 136px; }
+  .is-overview .hud__quest { max-width: 235px; }
+}
+.district-controls button:first-child { background: #ffcf43; color: #153d55; }
+.hud__title { color: #0c5368; }
+.hud__district { color: #16536a; }
+.hud__quest-progress { color: #12694c; }
+@media (max-width: 760px) {
+  .district-controls select { order: 3; flex-basis: 100%; }
+  .hud__quest { top: 187px; }
+  .hud__district { max-width: calc(100vw - 36px); font-size: 10px; }
+}

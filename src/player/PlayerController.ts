@@ -3,6 +3,7 @@ import type { Input } from "@/player/Input";
 import type { Player } from "@/player/Player";
 import type { ThirdPersonCamera } from "@/camera/ThirdPersonCamera";
 import type { HeightProvider } from "@/geography/WorldHeight";
+import { shoreDistance } from "@/geography/CityGeography";
 import { clampToWorld } from "@/geography/Projection";
 
 const WALK_SPEED = 4.5;
@@ -73,12 +74,14 @@ export class PlayerController {
   }
 
   private integrate(delta: number): void {
+    const oldX=this.player.position.x,oldZ=this.player.position.z;
     this.player.position.addScaledVector(this.player.velocity, delta);
+    if(shoreDistance(this.player.position.x,this.player.position.z)<1){this.player.position.x=oldX;this.player.position.z=oldZ;this.player.velocity.x=0;this.player.velocity.z=0;}
   }
 
   private resolveGround(): void {
     // Invisible walls: keep the player inside the small district.
-    const [cx, cz] = clampToWorld(this.player.position.x, this.player.position.z, 120);
+    const [cx, cz] = clampToWorld(this.player.position.x, this.player.position.z, 12);
     this.player.position.x = cx;
     this.player.position.z = cz;
 

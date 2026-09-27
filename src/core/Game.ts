@@ -1,18 +1,26 @@
+import {UrbanFabric} from '@/world/UrbanFabric';
+import {Neighborhoods} from '@/world/Neighborhoods';
 import * as THREE from "three";
 import { Renderer } from "@/core/Renderer";
 import { SceneManager } from "@/core/SceneManager";
+import { Atmosphere } from "@/world/Atmosphere";
+import { CityStructures } from "@/world/CityStructures";
+import { CityLife } from "@/world/CityLife";
+import { shoreDistance, coastX } from "@/geography/CityGeography";
 import { Terrain } from "@/world/Terrain";
+import { DistrictLandmarks } from "@/world/DistrictLandmarks";
 import { Roads } from "@/world/Roads";
 import { Buildings } from "@/world/Buildings";
 import { LandmarkDetails } from "@/world/LandmarkDetails";
 import { StreetProps } from "@/world/StreetProps";
 import { Pedestrians } from "@/world/Pedestrians";
 import { Traffic } from "@/world/Traffic";
-import { TerrainHeightfield } from "@/world/TerrainHeightfield";
+
 import { Lighting } from "@/world/Lighting";
+import { GltfAvatar } from "@/player/GltfAvatar";
 import { Player } from "@/player/Player";
 import { PlayerController } from "@/player/PlayerController";
-import { GltfAvatar } from "@/player/GltfAvatar";
+
 import { AudioManager } from "@/audio/AudioManager";
 import { VehicleManager } from "@/vehicles/VehicleManager";
 import { Input } from "@/player/Input";
@@ -63,17 +71,19 @@ export class Game {
 
   private controller: PlayerController;
   private getHeight: HeightProvider = createHeightProvider();
-  private heightfield?: TerrainHeightfield;
   private labels?: WorldLabels;
   private minimap?: Minimap;
   private pedestrians?: Pedestrians;
   private traffic?: Traffic;
+  private atmosphere?: Atmosphere;
+  private cityLife?: CityLife;
   private quest?: QuestManager;
   private notebook?: Notebook;
   private beacon?: QuestBeacon;
   private navigation?: Navigation;
   private searchBox?: SearchBox;
   private overview?: OverviewCamera;
+  private neighborhoods?: Neighborhoods;
   private mode: "follow" | "overview" = "follow";
   private clickStart: { x: number; y: number } | null = null;
   private landmarks?: LandmarkManager;
@@ -109,7 +119,7 @@ export class Game {
     canvas.addEventListener("pointerdown", (event) => {
       this.clickStart = { x: event.clientX, y: event.clientY };
     });
-    canvas.addEventListener("click", this.onCanvasClick);
+    canvas.addEventListener("dblclick", this.onCanvasClick);
 
     window.addEventListener("resize", this.onResize);
     this.onResize();
@@ -136,8 +146,7 @@ export class Game {
 
   /** Loads world assets and sets up the player at the configured spawn. */
   async load(): Promise<void> {
-    this.heightfield = await TerrainHeightfield.load();
-    this.getHeight = createHeightProvider(this.heightfield);
+    this.getHeight = createHeightProvider();
     this.overview = new OverviewCamera(this.renderer.aspect, this.getHeight);
     this.controller = new PlayerController(
       this.player,
@@ -146,9 +155,19 @@ export class Game {
       this.getHeight,
     );
 
-    const terrain = new Terrain(this.heightfield);
+    const terrain = new Terrain(this.getHeight);
     const roads = await Roads.load(this.getHeight);
+    const structures = await CityStructures.load(this.getHeight);
+    this.cityLife = new CityLife(roads.roads, this.getHeight);
+    this.atmosphere = new Atmosphere();
+    this.sceneManager.scene.add(structures.object, this.cityLife.object, this.atmosphere.object);
     const buildings = await Buildings.load(this.getHeight);
+    this.neighborhoods = new Neighborhoods(roads.roads, buildings.list, this.getHeight);
+    this.sceneManager.scene.add(this.neighborhoods.object, new UrbanFabric(roads.roads, buildings.list, this.neighborhoods, this.getHeight).object);
+    buildings.named.unshift(...this.cityLife.named);
+    const districtLandmarks = new DistrictLandmarks(this.getHeight);
+    buildings.named.push(...districtLandmarks.named);
+    this.sceneManager.scene.add(districtLandmarks.object);
     const landmarkDetails = LandmarkDetails.build(
       buildings.list,
       buildings.named,
@@ -156,7 +175,7 @@ export class Game {
     );
     const streetProps = new StreetProps(roads.roads, this.getHeight);
     this.pedestrians = new Pedestrians(roads.roads, this.getHeight);
-    this.traffic = new Traffic(roads.roads, this.getHeight);
+    this.traffic = new Traffic(roads.roads, this.getHeight, structures.paths);
     this.navigation = new Navigation(
       new RoadGraph(roads.roads),
       this.getHeight,
@@ -206,21 +225,65 @@ export class Game {
       (item) => this.navigation?.setDestination(item, this.player),
       () => this.navigation?.clear(),
     );
+
     await this.loadAvatar();
     await this.audio.loadAmbience();
 
     this.sceneManager.scene.add(terrain.object, roads.object, buildings.object);
 
     this.spawnPlayer();
+    this.setupDistrictControls(buildings.named);
+    this.toggleOverview();
 
     // Try to start the player at the device's real location (spec §54 extension).
-    void this.startAtDeviceLocation();
+    // Location remains available on request with L; the curated start is stable.
+  }
+
+  private setupDistrictControls(places: import("@/world/Buildings").NamedBuilding[]): void {
+    const toolbar = document.createElement("nav");
+    toolbar.className = "district-controls";
+    toolbar.setAttribute("aria-label", "Explore Chittagong");
+    const overview = document.createElement("button");
+    overview.textContent = "Walk / Overview";
+    overview.addEventListener("click", () => this.toggleOverview());
+    const select = document.createElement("select");
+    select.setAttribute("aria-label", "Visit a landmark");
+    select.add(new Option("Visit a landmark…", ""));
+    for (const place of places) select.add(new Option(place.name, place.id));
+    select.addEventListener("change", () => {
+      const place = places.find(p => p.id === select.value);
+      if (!place) return;
+      this.travelTo(place.x, place.z + 30);
+      this.cameraRig.yaw = 0;
+      this.cameraRig.pitch = 0.4;
+      this.cameraRig.distance = window.innerWidth < 760 ? 40 : 28;
+      this.player.facing = Math.PI;
+      if (this.mode === "overview") this.toggleOverview();
+      select.value = "";
+    });
+    const home = document.createElement("button");
+    home.textContent = "Start at Cheragi";
+    home.addEventListener("click", () => {
+      if (this.vehicles?.mounted) this.vehicles.toggleMount(this.player);
+      this.spawnPlayer(); this.cameraRig.snap();
+      if (this.mode === "overview") this.toggleOverview();
+    });
+    const beach = document.createElement("button");
+    beach.textContent = "Visit Patenga";
+    beach.addEventListener("click", () => {
+      const p = geoToLocal({latitude:22.23444,longitude:91.79226});
+      this.travelTo(p.x+12,p.z+15);
+      this.cameraRig.yaw = Math.PI/2;
+      this.cameraRig.pitch = .48;
+      this.cameraRig.distance = 14;
+      if(this.mode === "overview") this.toggleOverview();
+    });
+    toolbar.append(beach, overview, select, home); document.body.append(toolbar);
   }
 
   private async loadAvatar(): Promise<void> {
     try {
-      const avatar = await GltfAvatar.load();
-      this.player.setAvatar(avatar);
+      this.player.setAvatar(await GltfAvatar.load());
     } catch (error) {
       console.warn("[avatar] GLB unavailable; using procedural avatar.", error);
     }
@@ -308,6 +371,9 @@ export class Game {
 
     const delta = Math.min(this.clock.getDelta(), 0.05);
 
+    this.neighborhoods?.update(delta);
+    this.atmosphere?.update(delta, this.timeOfDay.isNight, this.player.position, this.mode === "overview");
+    
     this.pedestrians?.update(delta);
     this.traffic?.update(delta, this.timeOfDay.isNight);
 
@@ -361,7 +427,7 @@ export class Game {
     );
     this.sceneManager.setSky(this.timeOfDay.skyColor);
     this.hud.setClock(this.timeOfDay.label);
-    this.audio.updateAmbience(delta, this.timeOfDay.isNight);
+    this.audio.updateAmbience(delta, this.timeOfDay.isNight, Math.max(0, 1 - Math.abs(this.player.position.x - coastX(this.player.position.z)) / 120), this.mode === "overview");
     this.updateSun(this.timeOfDay.getLightDirection());
 
     if (this.postfx) {
@@ -411,6 +477,7 @@ export class Game {
     if (!this.overview) return;
     const entering = this.mode !== "overview";
     this.mode = entering ? "overview" : "follow";
+    document.body.classList.toggle("is-overview", entering);
     if (entering) {
       this.overview.snap();
       this.sceneManager.setFogFar(9000);
@@ -420,7 +487,7 @@ export class Game {
     }
   }
 
-  /** In overview, clicking the ground travels there and returns to follow. */
+  /** In overview, double-clicking the ground travels there and returns to follow. */
   private onCanvasClick = (event: MouseEvent): void => {
     if (this.mode !== "overview" || !this.overview) return;
     if (
@@ -434,14 +501,23 @@ export class Game {
     const hit = this.overview.pickGround(event.clientX, event.clientY, this.canvas, terrain);
     if (!hit) return;
     this.travelTo(hit[0], hit[1]);
-    this.mode = "follow";
+    if (this.mode === "overview") this.toggleOverview();
     this.cameraRig.snap();
   };
 
   /** Teleports the player to a world position (map click / pin). */
   private travelTo(x: number, z: number): void {
     if (this.vehicles?.mounted) this.vehicles.toggleMount(this.player);
-    const [cx, cz] = clampToWorld(x, z, 120);
+    let [cx, cz] = clampToWorld(x, z, 12);
+    // Keep map clicks on the promenade/bank instead of dropping the visitor in water.
+    if (shoreDistance(cx,cz)<4) {
+      let best=Infinity;
+      for(let dx=-60;dx<=60;dx+=4)for(let dz=-60;dz<=60;dz+=4){
+        const [px,pz]=clampToWorld(x+dx,z+dz,12),distance=dx*dx+dz*dz;
+        if(distance<best&&shoreDistance(px,pz)>6){best=distance;cx=px;cz=pz;}
+      }
+      if(!Number.isFinite(best))return;
+    }
     this.player.position.set(cx, this.getHeight(cx, cz), cz);
     this.player.velocity.set(0, 0, 0);
     this.player.sync();
