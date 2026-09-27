@@ -1,57 +1,31 @@
-# Progress
+# Chattogram explorer — current progress
 
-## Milestones (spec §66–72)
+Updated 2026-09-27. The compact miniature has 26 destinations and 48 connected road segments; distances are deliberately compressed.
 
-| # | Milestone | Status | Doc |
-| --- | --- | --- | --- |
-| 1 | Empty 3D world (renderer, curved surface, player, camera) | done | [m1](milestones/m1-empty-world.md) |
-| 2 | Real Chattogram terrain (projection, DEM, coast, water) | mostly (water deferred) | [m2](milestones/m2-terrain.md) |
-| 3 | Real roads (OSM import, intersections, bridges) | done (major roads) | [m3](milestones/m3-roads.md) |
-| 4 | Buildings (footprints, heights, types, LOD) | in progress (spawn district) | [m4](milestones/m4-buildings.md) |
-| 5 | Landmarks (labels, panel, interaction, learning) | done (spawn district) | [m5](milestones/m5-landmarks.md) |
-| 6 | World streaming (chunks, LOD, instancing) | planned | — |
-| 7 | Polish (materials, vegetation, fog, day/night, audio, UI) | in progress | [m7](milestones/m7-polish.md) |
-| 8 | Quests & History Notebook | done (first quest) | [m8](milestones/m8-quests.md) |
+## Available now
 
-## Cross-cutting
+- Walk, run, jump, summon and ride a car or bicycle; original character retained.
+- Continuous airport–Patenga–city–Bahaddarhat route, Shah Amanat Bridge, and four elevated structures with smooth, y-aware walkable/rideable decks.
+- Chittagong Port: cargo ships, speedboats, warehouses, container stacks, animated cranes and yard trucks, walkable apron.
+- Shah Amanat Airport: runway, terminal and planes following a flight loop.
+- Existing authored districts: Agrabad, GEC, New Market, Chawkbazar, CRB, Foy’s Lake, Nasirabad, Khulshi, Pahartali, Khatunganj and CMCH.
+- Animated coastal water, subtle river water, vegetation, clouds, pedestrians and traffic.
+- Overview mouse exploration and WASD flight; minimap, large map, travel, search, routing, quests and History Notebook.
+- Day/night cycle, subtle synthesized city/sea ambience and mute controls.
+- Homelab visitor counter: `chattogram` at `https://views.fazleyrabbi.xyz`; localhost does not increment visits.
 
-| Item | Status |
-| --- | --- |
-| Spec: minimap promoted to MVP (§55) | done |
-| Spec: educational layer added (§33a) | done |
-| Docs folder + ADRs | done |
-| Verified data sources | done |
-| Project scaffold (Vite + TS strict + Three) | done |
-| Git repo initialized + remote set | done |
-| DEM pipeline (Copernicus GLO-30) | done |
-| Roads pipeline (OSM major roads) | done |
-| Avatar authored in Blender (GLB) | done |
-| Water / coastline (OSM polygons) | pending |
-| Buildings (OSM footprints + LOD) | spawn district done; city-wide pending |
-| Named-building world labels | done |
-| Building realism (windows, roofs, domes) | done |
-| Named-building architecture detail | done (procedural) |
-| Blender hero models for iconic landmarks | pending |
-| Landmark interaction + info panel | done |
-| Wikipedia/Wikidata enrichment | done |
-| Minimap (§55, Canvas2D, names) | done |
-| Vehicles (summon car/bicycle, ride) | done |
-| Day/night cycle | done |
-| Street props (poles, wires, trees) | done |
-| Pedestrians (instanced) | done |
-| Traffic (cars / CNG / rickshaws) | done |
-| City ambience audio (hum, horns, birds) | done |
-| Post-processing (GTAO, bloom, SMAA, tilt-shift) | done |
-| Interactive map (click-to-travel, big map) | done |
-| Quest + History Notebook | done (first quest) |
-| Search + road routing (Dijkstra) | done |
-| Compact district (world shrunk) + invisible walls | done |
-| Real ambience recording (subtle) | done |
-| Globe overview camera (click to travel) | done |
-| Device geolocation spawn + tracking | done |
-| Footstep audio (synthesized) | done |
-| Ambient audio (city/birds/traffic) | pending |
+## This polish pass
 
-## Legend
+- Shared spatial collision grid for mapped buildings, procedural neighborhoods, important buildings and port warehouses. On-foot movement slides along walls; feet above roofs bypass the footprint.
+- Follow-camera obstruction checks run after smoothing, pull in immediately, and raise the boom near walls while retaining the minimum orbit distance and terrain clearance.
+- Solid flyover undersides and edge thickness, visible from walking view. Continuous cross-section strips replace overlapping ground-road joins; Bahaddarhat has a lower deck and longer approaches. Shops, palms and utility poles reserve clearance around elevated roads.
+- Warm window emission and instanced street-lamp heads/pools after dark. **K** toggles day/night; **T** still accelerates time.
+- Named buildings gain entrance recesses, cornices, rooftop service volumes, tanks and antennae within existing merged meshes.
+- Traffic wheels share one instanced batch: **204 → 45 traffic draw batches**, 159 fewer (78%). This is a geometry submission count, not a measured FPS claim.
+- Post-processing loads on first **P** press. Production JS is split into approximately 192 kB app, 569 kB Three core and 112 kB optional effects (minified). Three core still exceeds Vite’s default 500 kB warning; the warning is not suppressed.
 
-`planned` → `in progress` → `done`. Update on every meaningful change.
+## Verification and limits
+
+Run `npm run typecheck`, `npm run test:world`, and `npm run build`. Regression checks cover graph connectivity, compact bounds, shore geometry, elevated structures, procedural density, collision stability, roof clearance, camera obstruction and traffic batching.
+
+Collision uses conservative axis-aligned building boxes, so rotated corners can block slightly beyond the visible facade. Vehicle collision with buildings and full physics are outside this pass. Large-scale streaming remains deferred for this deliberately compact world.

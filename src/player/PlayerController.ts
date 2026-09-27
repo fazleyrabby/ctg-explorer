@@ -1,3 +1,4 @@
+import type {Colliders} from "@/world/Colliders";
 import * as THREE from "three";
 import type { Input } from "@/player/Input";
 import type { Player } from "@/player/Player";
@@ -26,6 +27,7 @@ const wish = new THREE.Vector3();
  * added in a later milestone; no physics engine is used yet (ADR-0001).
  */
 export class PlayerController {
+  colliders?:Colliders;
   constructor(
     private readonly player: Player,
     private readonly input: Input,
@@ -37,6 +39,7 @@ export class PlayerController {
     this.applyMovement(delta);
     this.applyGravityAndJump(delta);
     this.integrate(delta);
+    this.colliders?.resolve(this.player.position,.35);
     this.resolveGround();
     this.applyFacing(delta);
     this.player.sync();

@@ -1,3 +1,5 @@
+import type {Colliders} from "@/world/Colliders";
+import type {HeightProvider} from "@/geography/WorldHeight";
 import * as THREE from "three";
 import type { Input } from "@/player/Input";
 
@@ -8,9 +10,12 @@ const MAX_DISTANCE = 40;
 
 /**
  * Third-person orbit camera (spec §26). Follows a target with smoothing,
- * supports drag rotation and wheel zoom. Camera collision (§28) comes later.
+ * supports drag rotation, wheel zoom, and immediate building occlusion.
  */
 export class ThirdPersonCamera {
+  colliders?:Colliders;
+  getHeight?:HeightProvider;
+  private readonly collisionDirection=new THREE.Vector3();
   readonly camera: THREE.PerspectiveCamera;
 
   yaw = Math.PI;
@@ -66,7 +71,34 @@ export class ThirdPersonCamera {
       this.camera.position.lerp(this.desiredPosition, positionLerp);
     }
 
+    // Resolve the final smoothed position, so an orbit cannot lerp through a wall.
+    this.constrainPosition();
     this.camera.lookAt(this.currentTarget);
+  }
+
+  private constrainPosition():void {
+    const origin=this.currentTarget,position=this.camera.position,dir=this.collisionDirection;
+    if(this.getHeight)position.y=Math.max(position.y,this.getHeight(position.x,position.z)+1);
+    dir.copy(position).sub(origin);const desired=dir.length();if(desired<.001)return;dir.divideScalar(desired);
+    let hit=this.colliders?.rayDistance(origin,dir,desired)??desired;
+    if(hit<desired){
+      // Near walls, raise the boom until there is room for the minimum orbit.
+      if(hit-.55<MIN_DISTANCE){
+        for(let step=1;step<=12;step++){
+          dir.copy(position).sub(origin);dir.y+=step*2;dir.normalize();
+          const candidate=this.colliders!.rayDistance(origin,dir,desired);
+          if(candidate-.55>=MIN_DISTANCE||candidate===desired){hit=candidate;break;}
+        }
+      }
+      if(hit-.55<MIN_DISTANCE){
+        // A vertical boom outside the player's wall preserves the minimum
+        // distance even beside tall facades; discard a target lagging inside.
+        origin.copy(this.desiredTarget);
+        dir.set(0,1,0);
+        hit=this.colliders!.rayDistance(origin,dir,Math.max(desired,MIN_DISTANCE));
+      }
+      position.copy(origin).addScaledVector(dir,Math.max(MIN_DISTANCE,Math.min(desired,hit-.55)));
+    }
   }
 
   /** Jumps the follow smoothing (used after a teleport). */

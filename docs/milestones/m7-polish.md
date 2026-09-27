@@ -32,9 +32,18 @@
 
 ![geolocation](../images/geolocation.png)
 
-## Still pending
+## Compact-city polish (2026-09-27)
 
-- Vegetation (InstancedMesh, §23), roadside props (§41).
-- Atmospheric fog tuning, ambient audio (birds/city/traffic, §57).
-- Street/building lights at night (§34).
-- Settings, loading screen polish (§53).
+Vegetation, roadside props, clouds, animated sea/river water and quiet synthesized ambience are implemented. Port cranes, trucks, ships and airport aircraft animate in the existing world. Overview supports mouse exploration and WASD flight.
+
+Night windows use shared emissive uniforms/texture masks; street-lamp heads and subtle ground pools use two instanced batches with no additional point lights. **K** switches day/night, **T** fast-forwards, **P** loads optional effects on demand.
+
+Building/player and follow-camera collision share a static spatial grid. Elevated decks retain the y-aware surface provider and now have solid undersides. Named architecture gains merged entrance, cornice and rooftop details.
+
+Performance: traffic submissions reduced from 204 to 45 by instancing wheels; app/core/effects bundles split. See [current progress](../progress.md) for measurements and limitations.
+
+## Remaining broader work
+
+- Full vehicle physics and collision.
+- Device-specific FPS profiling and optional quality settings.
+- Large-world streaming only if the compact scope grows.

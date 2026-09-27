@@ -1,3 +1,5 @@
+import {solidBox} from '@/world/SolidFootprints';
+import type {CollisionBox} from '@/world/Colliders';
 import {inPortDistrict} from '@/geography/PortLayout';
 import * as THREE from 'three';
 import {localWorldBounds,geoToLocal} from '@/geography/Projection';
@@ -13,6 +15,7 @@ import type {Neighborhoods} from '@/world/Neighborhoods';
 type Piece={x:number;y:number;z:number;w:number;h:number;d:number;color:number;angle:number};
 /** Compact decorative blocks fill the map without adding long exploration roads. */
 export class UrbanFabric {
+ readonly solids:CollisionBox[]=[];
   readonly object=new THREE.Group();
   readonly plots:Array<{x:number;z:number;radius:number}>=[];
   parkCount=0;
@@ -46,6 +49,7 @@ export class UrbanFabric {
         continue;
       }
       const w=18+(index%2)*3,d=17,h=7+(index%5)*3.1,c=palette[(Math.floor(col/3)+Math.floor(row/3)+index%2)%5]!;
+      this.solids.push(solidBox(x,z,w,d,y,h+.3));
       box(x,y+h/2+.3,z,w,h,d,c);box(x,y+h+.55,z,w+1.2,.55,d+1.2,0xffedca);
       if(index%3===0)piece(roofs,x,y+h+2,z,(w+2)/Math.SQRT2,3.1,(d+2)/Math.SQRT2,index%2?0xd96f50:0x399c98,Math.PI/4);
       else box(x+3,y+h+1.2,z-2,6,1.3,5,index%2?0xd98064:0x539e9b);

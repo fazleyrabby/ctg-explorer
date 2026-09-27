@@ -81,6 +81,7 @@ export class Buildings {
   readonly object: THREE.Group;
   readonly named: NamedBuilding[];
   readonly list: BuildingData[];
+  setNight(night:boolean):void {const wall=this.object.getObjectByName("BuildingWalls") as THREE.Mesh<THREE.BufferGeometry,THREE.MeshStandardMaterial>;wall.material.emissiveIntensity=night?1.6:0;}
 
   private constructor(object: THREE.Group, named: NamedBuilding[], list: BuildingData[]) {
     this.object = object;
@@ -178,6 +179,7 @@ export class Buildings {
       buildGeometry(walls.pos, walls.col, walls.uv),
       new THREE.MeshStandardMaterial({
         map: createFacadeTexture(),
+        emissiveMap:createWindowLightTexture(),emissive:0xffca72,emissiveIntensity:0,
         vertexColors: true,
         roughness: 0.9,
         metalness: 0,
@@ -590,4 +592,13 @@ function createFacadeTexture(): THREE.CanvasTexture {
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 4;
   return texture;
+}
+
+function createWindowLightTexture():THREE.DataTexture {
+ const size=64,data=new Uint8Array(size*size*4);
+ for(let y=0;y<size;y++)for(let x=0;x<size;x++){
+  const i=(y*size+x)*4,lit=x>size*.22&&x<size*.78&&y>size*.32&&y<size*.80;
+  data[i]=data[i+1]=data[i+2]=lit?255:0;data[i+3]=255;
+ }
+ const texture=new THREE.DataTexture(data,size,size);texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.magFilter=THREE.LinearFilter;texture.minFilter=THREE.LinearFilter;texture.needsUpdate=true;return texture;
 }

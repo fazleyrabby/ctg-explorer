@@ -1,3 +1,5 @@
+import {solidBox} from '@/world/SolidFootprints';
+import type {CollisionBox} from '@/world/Colliders';
 import {inPortDistrict} from '@/geography/PortLayout';
 import {inProminentDistrict} from '@/world/ProminentPlaces';
 import {inAirportDistrict} from '@/world/Airport';
@@ -12,6 +14,7 @@ import type {HeightProvider} from '@/geography/WorldHeight';
 
 /** Decorative infill, deliberately separate from the sourced building footprints. */
 export class Neighborhoods {
+ readonly solids:CollisionBox[]=[];
   readonly object=new THREE.Group();
   readonly buildings:Array<{x:number;z:number;radius:number}>=[];
   readonly trees:Array<{x:number;z:number}>=[];
@@ -39,6 +42,7 @@ export class Neighborhoods {
       if(!clear(x,z,r))continue;
       const floors=2+index%5,h=floors*3.1,y=height(x,z),angle=p.yaw+(side>0?-Math.PI/2:Math.PI/2);
       this.buildings.push({x,z,radius:r});
+      this.solids.push(solidBox(x,z,w,depth,y,h,angle));
       const local=(lx:number,ly:number,lz:number,ww:number,hh:number,dd:number,c:number)=>box(ww,hh,dd,c,x+Math.cos(angle)*lx+Math.sin(angle)*lz,y+ly,z-Math.sin(angle)*lx+Math.cos(angle)*lz,angle);
       local(0,h/2,0,w,h,depth,palette[index%palette.length]!);
       local(0,h+.35,0,w+1,.7,depth+1,0xfff2d4);

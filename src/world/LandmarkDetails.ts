@@ -64,6 +64,14 @@ export class LandmarkDetails {
       band(buf, color, outset(ring, 0.8, centroid), baseLevel - 0.3, baseLevel + 1.0, centroid);
       band(buf, color, outset(ring, 0.5, centroid), topLevel - 0.8, topLevel + 0.3, centroid);
 
+      if(data.height>10)band(buf,color,outset(ring,.24,centroid),topLevel-3.3,topLevel-2.95,centroid);
+      if(type!=='religious'){
+        const width=Math.max(3,size*.3),service=new THREE.Color(0x8bacab);
+        box(buf,color,[centroid[0],topLevel+1.4,centroid[1]],[width,2.8,width*.65]);
+        box(buf,service,[centroid[0],topLevel+2.95,centroid[1]],[width+1,.3,width*.65+1]);
+        cylinder(buf,new THREE.Color(0x647c85),centroid[0]+width*.6,centroid[1],topLevel+.2,2,Math.max(.7,width*.15),10);
+        cylinder(buf,new THREE.Color(0xd8ddd6),centroid[0],centroid[1],topLevel+3,4,.08,6);
+      }
       if (landmark.name.includes("Buddhist")) {
         // A stepped temple roof, rather than the mosque treatment.
         const red = new THREE.Color(0xa95643);

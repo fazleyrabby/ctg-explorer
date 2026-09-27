@@ -35,6 +35,8 @@ export class TimeOfDay {
     this.hours = (this.hours + delta * rate) % 24;
   }
 
+  toggleDayNight():void {this.hours=this.isNight?10:21;}
+
   get hour(): number {
     return this.hours;
   }

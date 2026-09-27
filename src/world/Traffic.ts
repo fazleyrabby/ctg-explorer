@@ -6,7 +6,7 @@ import {richVehicle,type TrafficKind} from '@/world/RichVehicles';
 import type {ElevatedPath} from '@/world/CityStructures';
 interface Mover {object:THREE.Group;wheels:THREE.Object3D[];path:Path;distance:number;speed:number;heightAt?:((d:number)=>number)}
 export class Traffic {
- readonly object=new THREE.Group();private readonly movers:Mover[]=[];
+ readonly object=new THREE.Group();private readonly movers:Mover[]=[];private wheelBatch?:THREE.InstancedMesh;private readonly wheelMatrix=new THREE.Matrix4();
  constructor(roads:RoadData[],private readonly ground:HeightProvider,elevated:ElevatedPath[]=[]){
   this.object.name='Traffic';const paths=buildPaths(roads,45);const kinds:TrafficKind[]=['car','cng','rickshaw','bus'];const paint=[0xff6650,0x20bf78,0xffce40,0x36aeee,0xeb4f95];
   for(let i=0;i<32+elevated.length*3;i++){
@@ -17,13 +17,24 @@ export class Traffic {
     const wheels:THREE.Object3D[]=[];object.traverse(p=>{if(p.userData.wheel)wheels.push(p);});
     const mover:Mover={object,wheels,path,distance:(i*.618%1)*path.total*2,speed:kind==='rickshaw'?3:over?12:7};if(over)mover.heightAt=over.heightAt;this.movers.push(mover);
   }
+  const wheels=this.movers.flatMap(m=>m.wheels);
+  const sample=wheels[0]?.children[0] as THREE.Mesh|undefined;
+  if(sample){
+    this.wheelBatch=new THREE.InstancedMesh(sample.geometry,sample.material,wheels.length);this.wheelBatch.frustumCulled=false;
+    for(const wheel of wheels)wheel.clear();
+    this.object.add(this.wheelBatch);
+  }
   this.update(0,false);
  }
  update(delta:number,_night:boolean):void{
+  let wheelIndex=0;
   for(const m of this.movers){m.distance+=delta*m.speed;const cycle=m.distance%(m.path.total*2),forward=cycle<m.path.total,d=forward?cycle:m.path.total*2-cycle;
     const p=samplePath(m.path,d),offset=m.path.width*.22*(forward?1:-1),x=p.x-Math.cos(p.yaw)*offset,z=p.z+Math.sin(p.yaw)*offset;
     m.object.position.set(x,(m.heightAt?m.heightAt(d):this.ground(x,z))+.22,z);m.object.rotation.y=p.yaw+(forward?0:Math.PI);
     for(const w of m.wheels)w.rotation.x+=delta*m.speed/.37*(forward?1:-1);
+    m.object.updateMatrixWorld(true);
+    for(const w of m.wheels){this.wheelMatrix.copy(w.matrixWorld);this.wheelBatch?.setMatrixAt(wheelIndex++,this.wheelMatrix);}
   }
+  if(this.wheelBatch)this.wheelBatch.instanceMatrix.needsUpdate=true;
  }
 }

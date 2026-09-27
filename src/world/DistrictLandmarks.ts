@@ -1,3 +1,5 @@
+import {solidBox} from '@/world/SolidFootprints';
+import type {CollisionBox} from '@/world/Colliders';
 import * as THREE from 'three';
 import { geoToLocal } from '@/geography/Projection';
 import type { NamedBuilding } from '@/world/Buildings';
@@ -11,6 +13,7 @@ export const DISTRICT_PLACES = [
   {id:'court',name:'Chittagong Court Building',latitude:22.33483,longitude:91.83461,type:'government',height:14,wikipedia:'en:Chittagong_Court_Building',description:'The historic courthouse on Parir Pahar, or Fairy’s Hill. The model is a stylized interpretation.'},
 ];
 export class DistrictLandmarks {
+ readonly solids:CollisionBox[]=[];
   readonly object=new THREE.Group();
   readonly named:NamedBuilding[]=[];
   constructor(height:HeightProvider) {
@@ -20,6 +23,7 @@ export class DistrictLandmarks {
       this.named.push({...place,x,z});
       const group=new THREE.Group();group.position.set(x,y,z);this.object.add(group);
       const mesh=(geo:THREE.BufferGeometry,color:number,px=0,py=0,pz=0)=>{
+        if(geo instanceof THREE.BoxGeometry&&geo.parameters.height>=3&&geo.parameters.width>=3&&geo.parameters.depth>=3)this.solids.push(solidBox(x+px,z+pz,geo.parameters.width,geo.parameters.depth,y+py-geo.parameters.height/2,geo.parameters.height));
         const m=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color,roughness:.9}));m.position.set(px,py,pz);m.castShadow=true;m.receiveShadow=true;group.add(m);return m;
       };
       const box=(w:number,h:number,d:number,color:number,px=0,py=h/2,pz=0)=>mesh(new THREE.BoxGeometry(w,h,d),color,px,py,pz);

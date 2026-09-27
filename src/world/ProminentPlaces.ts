@@ -1,3 +1,5 @@
+import {solidBox} from '@/world/SolidFootprints';
+import type {CollisionBox} from '@/world/Colliders';
 import * as THREE from 'three';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import {geoToLocal, localWorldBounds} from '@/geography/Projection';
@@ -37,6 +39,7 @@ export function inProminentDistrict(x: number, z: number, margin = 0): boolean {
 }
 
 export class ProminentPlaces {
+ readonly solids:CollisionBox[]=[];
   readonly object = new THREE.Group();
   readonly named: NamedBuilding[] = [];
 
@@ -91,7 +94,12 @@ export class ProminentPlaces {
       };
       const box = (w: number, h: number, d: number, c: number, lx: number, lz: number, ry = 0, base = 0) => {
         if (!safe(lx, lz, Math.max(w, d) / 2)) return;
+        if(h>=3&&w>=3&&d>=3&&base<2)this.solids.push(solidBox(x+lx,z+lz,w,d,y+ground(lx,lz)+base,h,ry));
         add(new THREE.BoxGeometry(w, h, d), c, x + lx, y + ground(lx, lz) + base + h / 2, z + lz, 0, ry);
+        if(base===0&&h>=8&&w>=8&&d>=8){
+          add(new THREE.BoxGeometry(w+.8,.45,d+.8),0xf2e1ba,x+lx,y+ground(lx,lz)+h+.2,z+lz,0,ry);
+          add(new THREE.BoxGeometry(3,3,.25),0x355f6f,x+lx+Math.sin(ry)*(d/2+.2),y+ground(lx,lz)+1.5,z+lz+Math.cos(ry)*(d/2+.2),0,ry);
+        }
       };
       const cyl = (rt: number, rb: number, h: number, c: number, lx: number, lz: number, seg = 10, base = 0) => {
         if (!safe(lx, lz, Math.max(rt, rb) + 1)) return;

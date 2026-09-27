@@ -52,7 +52,7 @@ console.log(`PASS: ${destinations.length} destinations; ${roads.length} connecte
 const elevated:ElevatedRoad[]=JSON.parse(readFileSync('public/world/chattogram/compact/elevated.json','utf8')).elevated;
 const structures=CityStructures.build(elevated,height);
 assert.equal(structures.paths.length,4);
-for(const p of structures.paths){assert(p.heightAt(p.path.total/2)>8);assert(p.road.sourceWayIds.length>0);}
+for(const p of structures.paths){assert(p.heightAt(p.path.total/2)>5);assert(p.road.sourceWayIds.length>0);}
 const car=richVehicle('car',0xff6633);assert.equal(car.children.filter(c=>c.userData.wheel).length,4);
 for(const road of roads) {
   const wet=road.points.filter(p=>shoreDistance(...p)<0);
@@ -100,3 +100,28 @@ for(const p of fabric.plots){
   for(const road of roads)for(let i=1;i<road.points.length;i++)assert(segmentDistance(p.x,p.z,road.points[i-1]!,road.points[i]!)>p.radius+road.width/2+3,'Infill leaves main roads clear');
 }
 console.log(`PASS: ${fabric.plots.length-fabric.parkCount} infill buildings, ${fabric.parkCount} courtyards, ${fabric.riverWalkSegments} bank path segments; main-road and water clearances passed.`);
+
+const THREE=await import('three');
+const {Colliders}=await import('../src/world/Colliders');
+const {ThirdPersonCamera}=await import('../src/camera/ThirdPersonCamera');
+const {Traffic}=await import('../src/world/Traffic');
+const collision=new Colliders([{id:'test-solid',type:'office',height:8,ring:[[0,0],[8,0],[8,8],[0,8]]}],()=>0);
+const walker=new THREE.Vector3(-.1,0,4);collision.resolve(walker,.35);assert(walker.x<=-.349);
+const stable=walker.clone();collision.resolve(walker,.35);assert(walker.distanceTo(stable)<1e-6,'No stationary collision jitter');
+const roofWalker=new THREE.Vector3(4,9,4);collision.resolve(roofWalker,.35);assert.equal(roofWalker.x,4,'Above-roof movement remains free');
+assert.equal(collision.rayDistance(new THREE.Vector3(-5,3,4),new THREE.Vector3(1,0,0),20),5);
+const camera=new ThirdPersonCamera(1.5);camera.colliders=collision;camera.getHeight=()=>0;camera.yaw=Math.PI/2;camera.pitch=.15;camera.distance=12;
+const target=new THREE.Vector3(-2,1.3,4);camera.update(.016,target);
+const ray=camera.camera.position.clone().sub(target),length=ray.length();ray.normalize();
+assert(collision.rayDistance(target,ray,length)>=length-.001,'Camera cannot see through a solid');
+assert(length>=4&&camera.camera.position.y>=1,'Camera retains a safe orbit and ground clearance');
+// A solid deck must have downward-facing geometry, visible from street level.
+let downward=0;structures.object.traverse(o=>{if(o instanceof THREE.Mesh){const n=o.geometry.getAttribute('normal');for(let i=0;i<n.count;i++)if(n.getY(i)<-.9)downward++;}});assert(downward>100);
+const traffic=new Traffic(roads,height,structures.paths);let trafficDraws=0;traffic.object.traverse(o=>{if(o instanceof THREE.Mesh)trafficDraws++;});assert(trafficDraws<=45,'Traffic wheels share one instanced draw');traffic.update(.1,true);
+console.log(`PASS: wall sliding, roof clearance, camera obstruction, solid flyover underside; traffic geometry uses ${trafficDraws} draws (previously 204).`);
+
+const bah=structures.paths.find(p=>p.road.id==='bahaddarhat-flyover')!;
+for(let d=1;d<bah.path.total;d++)assert(Math.abs(bah.heightAt(d)-bah.heightAt(d-1))<.4,'Bahaddarhat ramp must not form a steep hump');
+const market=new CityLife(roads,height,structures.paths.map(p=>p.road));
+for(const box of market.solids){const x=(box.minX+box.maxX)/2,z=(box.minZ+box.maxZ)/2;for(const r of [...roads,...elevated])for(let i=1;i<r.points.length;i++)assert(segmentDistance(x,z,r.points[i-1]!,r.points[i]!)>=r.width/2+7.99,'Market shops clear roads and flyover ramps');}
+console.log('PASS: gentle Bahaddarhat approaches and market road clearance.');

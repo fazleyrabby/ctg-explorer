@@ -1,3 +1,5 @@
+import {solidBox} from '@/world/SolidFootprints';
+import type {CollisionBox} from '@/world/Colliders';
 import * as THREE from 'three';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import {PORT,portPoint} from '@/geography/PortLayout';
@@ -47,6 +49,7 @@ export function speedboat(index=0):THREE.Group {
 }
 type Vessel={object:THREE.Group;wake?:THREE.Mesh;kind:'speedboat'|'offshore'|'berthed';phase:number;localZ?:number};
 export class Maritime {
+ readonly solids:CollisionBox[]=[];
  readonly object=new THREE.Group();readonly named:NamedBuilding[]=[];
  readonly vessels:Vessel[]=[];
  readonly containerCount=156;
@@ -67,10 +70,12 @@ export class Maritime {
   // Tiered stacks share one raised origin — never build the same box twice.
   for(let row=0;row<6;row++)for(let col=0;col<4;col++)for(let level=0;level<2+(row%3===0?1:0);level++)container(b,-39-col*8,ground+level*3,-49+row*18,row+col+level,5,3,12);
   for(const z of [-38,33]){
+   const [wx,wz]=portPoint(-96,z);this.solids.push(solidBox(wx,wz,26,36,ground,12,PORT.yaw));
    b.box(26,12,36,0xe5d5aa,-96,ground+6,z);b.box(29,.8,39,0x4b8d95,-96,ground+12.3,z);
    for(let k=-1;k<=1;k++)b.box(.2,6,7,0x51727a,-82.8,ground+3,z+k*10);
    b.box(25,1.5,.2,0xf7e6c2,-96,ground+9,z+18.1);
   }
+  const [ox,oz]=portPoint(-98,62);this.solids.push(solidBox(ox,oz,18,12,ground,10,PORT.yaw));
   b.box(18,10,12,0xf3e7c9,-98,ground+5,62);b.box(18,2,.2,0x548794,-98,ground+7,68.1);
   b.box(22,.7,15,0x42798c,-98,ground+10,62);
   for(const x of [-125,-78])b.box(.5,3,134,0x9eb4ad,x,ground+1.5,0);

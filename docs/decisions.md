@@ -527,3 +527,16 @@ order (`a, c, b, b, c, d`) so road normals face up; GTAO now leaves roads alone.
 
 - Keep bbox resampling and clamp outliers — masks the bug, keeps wrong heights.
 - Switch DEM source — Copernicus is fine; the bug was in *how* we read it.
+
+
+## ADR-0022 — Shared building collision grid and solid elevated decks
+
+Keep one spatial grid built at load from mapped footprints and authored structure boxes. On-foot circle push-out respects building vertical extents, allowing roofs and flyovers above lower structures. The camera uses the same boxes after smoothing, with immediate pull-in and an elevated fallback near tall walls. Conservative AABBs trade exact rotated corners for cheap queries. Deck collision remains the existing y-aware height provider; closed concrete slabs fix missing undersides visually.
+
+## ADR-0023 — Night lights without per-building point lights
+
+Use a shared emission uniform for baked/instanced window colors, an emissive window mask for mapped facades, and instanced lamp heads/ground pools. Day/night drives all three without cloning materials each frame. K is an explicit day/night preview control. Important buildings retain merged geometry for new entrances, cornices and rooftop equipment.
+
+## ADR-0024 — Instance traffic wheels and defer optional effects
+
+Keep all 44 ambient vehicle bodies and motion paths. Replace individual wheel meshes with one shared instanced batch, reducing traffic geometry submissions from 204 to 45. Load PostFX only when P first enables it; split the reusable Three core from application code. The remaining core-size warning is reported rather than hidden. No FPS uplift is claimed without device-specific profiling.

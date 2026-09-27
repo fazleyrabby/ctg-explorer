@@ -1,3 +1,5 @@
+import {solidBox} from '@/world/SolidFootprints';
+import type {CollisionBox} from '@/world/Colliders';
 import {inPortDistrict} from '@/geography/PortLayout';
 import {inAirportDistrict} from '@/world/Airport';
 import * as THREE from 'three';
@@ -10,20 +12,25 @@ import {buildPaths,samplePath} from '@/world/RoadPath';
 import {buildRoadGeometry} from '@/world/Roads';
 
 export class CityLife {
+ readonly solids:CollisionBox[]=[];
  readonly object=new THREE.Group();readonly named:NamedBuilding[]=[];
 
- constructor(roads:RoadData[],height:HeightProvider){
+ constructor(roads:RoadData[],height:HeightProvider,elevated:RoadData[]=[]){
   this.object.name='CityLife';const staticParts:THREE.BufferGeometry[]=[];
   const add=(geo:THREE.BufferGeometry,color:number,x:number,y:number,z:number,angle=0)=>{
     geo.rotateY(angle).translate(x,y,z);const c=new THREE.Color(color),colors=[];for(let i=0;i<geo.getAttribute('position').count;i++)colors.push(c.r,c.g,c.b);geo.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));staticParts.push(geo);
   };
   const box=(w:number,h:number,d:number,color:number,x:number,y:number,z:number,angle=0)=>add(new THREE.BoxGeometry(w,h,d),color,x,y,z,angle);
   const palm=(x:number,z:number,size=1)=>{
+    if(elevated.some(r=>r.points.slice(1).some((b,i)=>segmentDistance(x,z,r.points[i]!,b)<r.width/2+6*size)))return;
     const y=height(x,z);add(new THREE.CylinderGeometry(.32*size,.55*size,8*size,7),0xc29454,x,y+4*size,z);
     for(let k=0;k<7;k++){const angle=k*Math.PI*2/7;const leaf=new THREE.SphereGeometry(1,6,4).scale(1.1*size,.3*size,4*size).rotateX(-.25).translate(0,0,2*size);add(leaf,k%2?0x25ae62:0x68d647,x,y+8*size,z,angle);}
   };
   const shop=(x:number,z:number,angle:number,index:number)=>{
+    // Include the full stall/awning footprint and every crossing road.
+    if([...roads,...elevated].some(r=>r.points.slice(1).some((b,i)=>segmentDistance(x,z,r.points[i]!,b)<r.width/2+8)))return;
     const y=height(x,z),palette=[0xff915c,0x48c6ba,0xffd65c,0xf58cac];
+    this.solids.push(solidBox(x,z,8,6,y,6,angle));
     box(8,6,6,palette[index%4]!,x,y+3,z,angle);box(8.8,.5,7,0xfaf3d1,x,y+6.2,z,angle);
     const nx=Math.sin(angle),nz=Math.cos(angle);
     box(5.5,2.8,.25,0x185c73,x+nx*3.1,y+2.3,z+nz*3.1,angle);

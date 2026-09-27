@@ -1,3 +1,4 @@
+import {segmentDistance} from "@/geography/CityGeography";
 import * as THREE from "three";
 import type { HeightProvider } from "@/geography/WorldHeight";
 import type { RoadData } from "@/world/Roads";
@@ -24,8 +25,11 @@ interface Placed {
  */
 export class StreetProps {
   readonly object: THREE.Group;
+  private readonly lampMaterial=new THREE.MeshStandardMaterial({color:0xffebbd,emissive:0xffc96a,emissiveIntensity:0});
+  private readonly poolMaterial=new THREE.MeshBasicMaterial({color:0xffd78b,transparent:true,opacity:0,depthWrite:false});
+  setNight(night:boolean):void{this.lampMaterial.emissiveIntensity=night?2.5:0;this.poolMaterial.opacity=night?.13:0;}
 
-  constructor(roads: RoadData[], getHeight: HeightProvider) {
+  constructor(roads: RoadData[], getHeight: HeightProvider, elevated: RoadData[] = []) {
     this.object = new THREE.Group();
     this.object.name = "StreetProps";
 
@@ -60,6 +64,7 @@ export class StreetProps {
             sincePole = 0;
             const px = a[0] + dirX * t + nX * offset;
             const pz = a[1] + dirZ * t + nZ * offset;
+            if(elevated.some(r=>r.points.slice(1).some((b,i)=>segmentDistance(px,pz,r.points[i]!,b)<r.width/2+7)))continue;
             poles.push({ x: px, z: pz, y: getHeight(px, pz), angle });
 
             if (poles.length % TREE_EVERY === 0) {
@@ -75,6 +80,10 @@ export class StreetProps {
     }
 
     this.object.add(buildPoles(poles));
+    const heads=new THREE.InstancedMesh(new THREE.BoxGeometry(1.5,.25,.7),this.lampMaterial,poles.length);
+    const pools=new THREE.InstancedMesh(new THREE.CircleGeometry(3.7,16).rotateX(-Math.PI/2),this.poolMaterial,poles.length);
+    const matrix=new THREE.Matrix4();poles.forEach((p,i)=>{matrix.makeTranslation(p.x,p.y+POLE_HEIGHT-.6,p.z);heads.setMatrixAt(i,matrix);matrix.makeTranslation(p.x,p.y+.07,p.z);pools.setMatrixAt(i,matrix);});
+    heads.name='Street lamp heads';pools.name='Street lamp pools';this.object.add(heads,pools);
     this.object.add(buildTrees(trees));
     // Wires are intentionally omitted in the miniature district.
     void buildWires;

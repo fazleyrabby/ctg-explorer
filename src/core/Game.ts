@@ -1,3 +1,5 @@
+import {NightLights} from '@/world/NightLights';
+import {Colliders} from '@/world/Colliders';
 import {UrbanFabric} from '@/world/UrbanFabric';
 import {Neighborhoods} from '@/world/Neighborhoods';
 import * as THREE from "three";
@@ -32,7 +34,7 @@ import { ThirdPersonCamera } from "@/camera/ThirdPersonCamera";
 import { OverviewCamera } from "@/camera/OverviewCamera";
 import { HUD } from "@/ui/HUD";
 import { WorldLabels } from "@/ui/WorldLabels";
-import { PostFX } from "@/rendering/PostFX";
+import type { PostFX } from "@/rendering/PostFX";
 import { Minimap } from "@/ui/Minimap";
 import { LandmarkPanel } from "@/ui/LandmarkPanel";
 import { LandmarkManager } from "@/landmarks/LandmarkManager";
@@ -91,11 +93,16 @@ export class Game {
   private searchBox?: SearchBox;
   private overview?: OverviewCamera;
   private neighborhoods?: Neighborhoods;
+  private nightLights?:NightLights;
+  private litBuildings?:Buildings;
+  private streetProps?:StreetProps;
+  private nightState=false;
   private mode: "follow" | "overview" = "follow";
   private clickStart: { x: number; y: number } | null = null;
   private landmarks?: LandmarkManager;
   private vehicles?: VehicleManager;
   private postfx: PostFX | undefined;
+  private fxLoading=false;
   private readonly audio = new AudioManager();
   private readonly timeOfDay = new TimeOfDay();
   private gpsWatchId: number | null = null;
@@ -131,18 +138,6 @@ export class Game {
     window.addEventListener("resize", this.onResize);
     this.onResize();
 
-    try {
-      this.postfx = new PostFX(
-        this.renderer.instance,
-        this.sceneManager.scene,
-        this.cameraRig.camera,
-        window.innerWidth,
-        window.innerHeight,
-      );
-    } catch (error) {
-      console.warn("[postfx] disabled:", error);
-      this.postfx = undefined;
-    }
   }
 
   /** Browsers require a user gesture before audio can start. */
@@ -169,12 +164,13 @@ export class Game {
     // the port apron is a solid low platform so the player stands on the quay.
     this.getHeight = createSurfaceProvider(this.getHeight, structures, portSurfaceHeight);
     this.controller = new PlayerController(this.player, this.input, this.cameraRig, this.getHeight);
-    this.cityLife = new CityLife(roads.roads, this.getHeight);
+    this.cityLife = new CityLife(roads.roads, this.getHeight, structures.paths.map(p=>p.road));
     this.atmosphere = new Atmosphere();
     this.sceneManager.scene.add(structures.object, this.cityLife.object, this.atmosphere.object);
     const buildings = await Buildings.load(this.getHeight);
     this.neighborhoods = new Neighborhoods(roads.roads, buildings.list, this.getHeight);
-    this.sceneManager.scene.add(this.neighborhoods.object, new UrbanFabric(roads.roads, buildings.list, this.neighborhoods, this.getHeight).object);
+    const fabric=new UrbanFabric(roads.roads, buildings.list, this.neighborhoods, this.getHeight);
+    this.sceneManager.scene.add(this.neighborhoods.object,fabric.object);
     // Chittagong Port: quays, cranes, stacked containers, ships and river traffic.
     this.maritime = new Maritime();
     this.sceneManager.scene.add(this.maritime.object);
@@ -190,12 +186,17 @@ export class Game {
     this.prominentPlaces = new ProminentPlaces(roads.roads, buildings.list, this.getHeight);
     buildings.named.push(...this.prominentPlaces.named);
     this.sceneManager.scene.add(this.prominentPlaces.object);
+    const colliders=new Colliders(buildings.list,this.getHeight);
+    for(const source of [this.neighborhoods,fabric,this.cityLife,this.maritime,districtLandmarks,this.prominentPlaces])for(const solid of source.solids)colliders.addBox(solid);
+    this.controller.colliders=colliders;this.cameraRig.colliders=colliders;this.cameraRig.getHeight=this.getHeight;
     const landmarkDetails = LandmarkDetails.build(
       buildings.list,
       buildings.named,
       this.getHeight,
     );
-    const streetProps = new StreetProps(roads.roads, this.getHeight);
+    const streetProps = new StreetProps(roads.roads, this.getHeight, structures.paths.map(p=>p.road));
+    this.streetProps=streetProps;this.litBuildings=buildings;
+    this.nightLights=new NightLights([this.neighborhoods.object,fabric.object,this.prominentPlaces.object]);
     this.pedestrians = new Pedestrians(roads.roads, this.getHeight);
     this.traffic = new Traffic(roads.roads, this.getHeight, structures.paths);
     this.navigation = new Navigation(
@@ -453,6 +454,9 @@ export class Game {
       this.timeOfDay.ambientIntensity,
       this.timeOfDay.sunHeight > 0.2,
     );
+    const night=this.timeOfDay.isNight;
+    this.nightLights?.update(delta,night);
+    if(night!==this.nightState){this.nightState=night;this.litBuildings?.setNight(night);this.streetProps?.setNight(night);}
     this.sceneManager.setSky(this.timeOfDay.skyColor);
     this.hud.setClock(this.timeOfDay.label);
     // Ocean bed rises within ~140 units of the coast or the Karnaphuli river.
@@ -470,6 +474,13 @@ export class Game {
     this.input.endFrame();
   };
 
+  private async togglePostFX():Promise<void>{
+    if(this.postfx){this.postfx.toggle();return;}
+    if(this.fxLoading)return;this.fxLoading=true;
+    try{const {PostFX}=await import('@/rendering/PostFX');this.postfx=new PostFX(this.renderer.instance,this.sceneManager.scene,this.cameraRig.camera,window.innerWidth,window.innerHeight);this.postfx.toggle();}
+    catch(error){console.warn('[postfx] unavailable',error);}finally{this.fxLoading=false;}
+  }
+
   private handleVehicleInput(): void {
     const vehicles = this.vehicles;
     if (!vehicles) return;
@@ -486,7 +497,8 @@ export class Game {
     }
     if (this.input.wasPressed("KeyL")) void this.startAtDeviceLocation();
     if (this.input.wasPressed("KeyG")) this.toggleGpsTracking();
-    if (this.input.wasPressed("KeyP")) this.postfx?.toggle();
+    if (this.input.wasPressed("KeyP")) void this.togglePostFX();
+    if (this.input.wasPressed("KeyK")) this.timeOfDay.toggleDayNight();
     if (this.input.wasPressed("KeyM")) this.audio.toggleMute();
     if (this.input.wasPressed("KeyO")) this.toggleOverview();
     if (this.input.wasPressed("KeyF")) {
