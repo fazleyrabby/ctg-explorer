@@ -28,6 +28,10 @@ const wish = new THREE.Vector3();
  */
 export class PlayerController {
   colliders?:Colliders;
+  private movementYaw=0;
+  private lastForward=0;
+  private lastRight=0;
+  private lastOrbitRevision=-1;
   constructor(
     private readonly player: Player,
     private readonly input: Input,
@@ -47,15 +51,24 @@ export class PlayerController {
   }
 
   private applyMovement(delta: number): void {
-    const yaw = this.camera.yaw;
+    const moveForward=this.input.moveForward,moveRight=this.input.moveRight;
+    // Hold the world-space direction for a continuous key combination while
+    // the follow camera turns. A mouse orbit or a new key combination steers it.
+    if(moveForward!==this.lastForward||moveRight!==this.lastRight||this.camera.manualOrbitRevision!==this.lastOrbitRevision){
+      this.movementYaw=this.camera.yaw;
+      this.lastForward=moveForward;
+      this.lastRight=moveRight;
+      this.lastOrbitRevision=this.camera.manualOrbitRevision;
+    }
+    const yaw = this.movementYaw;
 
     forward.set(-Math.sin(yaw), 0, -Math.cos(yaw));
     right.set(Math.cos(yaw), 0, -Math.sin(yaw));
 
     wish
       .set(0, 0, 0)
-      .addScaledVector(forward, this.input.moveForward)
-      .addScaledVector(right, this.input.moveRight);
+      .addScaledVector(forward, moveForward)
+      .addScaledVector(right, moveRight);
 
     const speed = this.input.sprinting ? RUN_SPEED : WALK_SPEED;
 

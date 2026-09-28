@@ -250,7 +250,7 @@ export class Game {
       buildings.named,
       (x, z) => this.travelTo(x, z),
     );
-    this.vehicles = new VehicleManager(this.sceneManager.scene, this.getHeight);
+    this.vehicles = new VehicleManager(this.sceneManager.scene, this.getHeight, structures.constrainDrive.bind(structures));
     this.searchBox = new SearchBox(
       document.body,
       buildSearchIndex(buildings.named, roads.roads),
@@ -432,13 +432,14 @@ export class Game {
         this.vehicles?.drive(delta, this.input);
         this.vehicles?.syncRider(this.player);
         this.player.updateRiding(delta);
-        // Camera is free to orbit while riding (mouse drag / wheel zoom), exactly
-        // like on foot; it only follows the vehicle's position.
+        this.cameraRig.followHeading(delta,mounted.heading,Math.abs(mounted.speed)>.7);
         if (!this.vehicles?.getCameraTarget(this.cameraTarget)) {
           this.player.getCameraTarget(this.cameraTarget);
         }
       } else {
         this.controller.update(delta);
+        const walkingSpeed=Math.hypot(this.player.velocity.x,this.player.velocity.z);
+        this.cameraRig.followHeading(delta,this.player.facing,walkingSpeed>.65&&this.input.moveForward>=0);
         this.player.getCameraTarget(this.cameraTarget);
       }
       this.cameraRig.update(delta, this.cameraTarget);

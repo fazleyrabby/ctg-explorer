@@ -9,7 +9,7 @@ export interface ElevatedPath {road:ElevatedRoad;path:Path;heightAt:(distance:nu
 export class CityStructures {
   readonly object=new THREE.Group();
   readonly paths:ElevatedPath[]=[];
-  private constructor(){}
+  private constructor(private readonly groundHeight:HeightProvider){}
   static async load(ground:HeightProvider):Promise<CityStructures>{
     const response=await fetch('/world/chattogram/compact/elevated.json');
     if(!response.ok)throw new Error('Elevated road data unavailable');
@@ -17,7 +17,7 @@ export class CityStructures {
     return CityStructures.build(elevated,ground);
   }
   static build(elevated:ElevatedRoad[],ground:HeightProvider):CityStructures{
-    const result=new CityStructures();result.object.name='FlyoversAndBridge';
+    const result=new CityStructures(ground);result.object.name='FlyoversAndBridge';
     const pierMat=new THREE.MeshStandardMaterial({color:0xe1e7df,roughness:.85});
     for(const road of elevated){
       const path=buildPaths([road],0)[0];if(!path)continue;
@@ -38,6 +38,11 @@ export class CityStructures {
       const mesh=new THREE.Mesh(solidDeck(ribbon(road.width+1.4,0),.7),pierMat);mesh.castShadow=true;result.object.add(mesh);
       const asphalt=new THREE.Mesh(ribbon(road.width,.15),new THREE.MeshStandardMaterial({color:0x334e61,roughness:.8}));result.object.add(asphalt);
       const line=new THREE.Mesh(ribbon(.18,.2),new THREE.MeshBasicMaterial({color:0xfff3c4}));result.object.add(line);
+      for(const side of [-1,1]){
+        const wall=new THREE.Mesh(elevatedWall(path,h,road.width/2+.52,side),pierMat);
+        wall.castShadow=true;
+        result.object.add(wall);
+      }
       const railSegments:THREE.Vector3[]=[];
       for(let d=0;d<path.total;d+=3){const a=samplePath(path,d),b=samplePath(path,Math.min(path.total,d+3));for(const side of [-1,1]){
         const offset=road.width/2+.35;
@@ -88,6 +93,67 @@ export class CityStructures {
     }
     return best;
   }
+
+  /** Keep a vehicle already on an elevated deck inside its solid side walls. */
+  constrainDrive(fromX:number,fromZ:number,fromY:number,toX:number,toZ:number,radius:number):[number,number] {
+    let active:ElevatedPath|null=null;
+    let bestHeightDifference=Infinity;
+    for(const candidate of this.paths){
+      const nearest=nearestOnPath(candidate.path,fromX,fromZ);
+      if(nearest.distance>candidate.road.width/2+.7)continue;
+      const deck=candidate.heightAt(nearest.along)+.15;
+      const ground=this.groundHeight(fromX,fromZ);
+      const difference=Math.abs(fromY-deck);
+      if(deck-ground<1.5||difference>1.5||difference>=bestHeightDifference)continue;
+      active=candidate;
+      bestHeightDifference=difference;
+    }
+    if(!active)return [toX,toZ];
+    const nearest=nearestOnPath(active.path,toX,toZ);
+    const limit=Math.max(.3,active.road.width/2+.37-radius);
+    if(nearest.distance<=limit)return [toX,toZ];
+    const scale=limit/nearest.distance;
+    return [nearest.x+(toX-nearest.x)*scale,nearest.z+(toZ-nearest.z)*scale];
+  }
+
+}
+
+function nearestOnPath(path:Path,x:number,z:number):{x:number;z:number;along:number;distance:number}{
+  let nearest={x:0,z:0,along:0,distance:Infinity};
+  for(let i=1;i<path.points.length;i++){
+    const a=path.points[i-1]!,b=path.points[i]!;
+    const dx=b[0]-a[0],dz=b[1]-a[1];
+    const t=Math.max(0,Math.min(1,((x-a[0])*dx+(z-a[1])*dz)/(dx*dx+dz*dz||1)));
+    const px=a[0]+dx*t,pz=a[1]+dz*t;
+    const distance=Math.hypot(x-px,z-pz);
+    if(distance<nearest.distance)nearest={x:px,z:pz,along:path.cum[i-1]!+t*(path.cum[i]!-path.cum[i-1]!),distance};
+  }
+  return nearest;
+}
+
+/** A low, solid parapet whose inner face matches the driving limit. */
+function elevatedWall(path:Path,heightAt:(d:number)=>number,offset:number,side:number):THREE.BufferGeometry{
+  const positions:number[]=[],indices:number[]=[];
+  const steps=Math.ceil(path.total/1.5);
+  for(let i=0;i<=steps;i++){
+    const d=path.total*i/steps,p=samplePath(path,d);
+    const before=samplePath(path,Math.max(0,d-2)),after=samplePath(path,Math.min(path.total,d+2));
+    const dx=after.x-before.x,dz=after.z-before.z,len=Math.hypot(dx,dz)||1;
+    const nx=-dz/len*side,nz=dx/len*side,y=heightAt(d);
+    for(const lateral of [offset-.15,offset+.15])for(const lift of [.1,1.05]){
+      positions.push(p.x+nx*lateral,y+lift,p.z+nz*lateral);
+    }
+    if(i<steps){
+      const a=i*4,b=a+4;
+      for(const [left,right] of [[0,1],[2,3],[0,2],[1,3]] as const){
+        indices.push(a+left,b+left,a+right,a+right,b+left,b+right);
+      }
+    }
+  }
+  const geometry=new THREE.BufferGeometry();
+  geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+  geometry.setIndex(indices);geometry.computeVertexNormals();
+  return geometry;
 }
 
 /** Closed slab: every top triangle has a bottom and thickness at its edges. */

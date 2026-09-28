@@ -2,7 +2,7 @@ import * as THREE from "three";
 import type { HeightProvider } from "@/geography/WorldHeight";
 import type { Player } from "@/player/Player";
 import type { Input } from "@/player/Input";
-import { Vehicle, type VehicleKind } from "@/vehicles/Vehicle";
+import { Vehicle, type DriveConstraint, type VehicleKind } from "@/vehicles/Vehicle";
 
 const SUMMON_DISTANCE = 3.5;
 const MOUNT_RANGE = 6;
@@ -20,6 +20,7 @@ export class VehicleManager {
   constructor(
     private readonly scene: THREE.Scene,
     private readonly getHeight: HeightProvider,
+    private readonly constrainDrive?: DriveConstraint,
   ) {
     this.car = new Vehicle("car");
     this.bicycle = new Vehicle("bicycle");
@@ -114,6 +115,7 @@ export class VehicleManager {
       input.moveRight,
       input.jumpPressed,
       this.getHeight,
+      this.constrainDrive,
     );
   }
 

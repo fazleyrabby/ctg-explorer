@@ -7,6 +7,8 @@ const MIN_PITCH = 0.12;
 const MAX_PITCH = 1.25;
 const MIN_DISTANCE = 4;
 const MAX_DISTANCE = 40;
+const AUTO_FOLLOW_RATE = 2.4;
+const MANUAL_ORBIT_PAUSE = 2.5;
 
 /**
  * Third-person orbit camera (spec §26). Follows a target with smoothing,
@@ -26,6 +28,10 @@ export class ThirdPersonCamera {
   private readonly desiredTarget = new THREE.Vector3();
   private readonly desiredPosition = new THREE.Vector3();
   private initialized = false;
+  private manualOrbitPause = 0;
+  private orbitRevision = 0;
+
+  get manualOrbitRevision(): number { return this.orbitRevision; }
 
   constructor(aspect: number, private readonly rotateSpeed = 0.005) {
     this.camera = new THREE.PerspectiveCamera(60, aspect, 0.1, 12000);
@@ -34,6 +40,10 @@ export class ThirdPersonCamera {
   handleInput(input: Input): void {
     const pointer = input.consumePointerDelta();
     this.yaw -= pointer.x * this.rotateSpeed;
+    if(pointer.x !== 0 || pointer.y !== 0){
+      this.manualOrbitPause = MANUAL_ORBIT_PAUSE;
+      this.orbitRevision++;
+    }
     this.pitch = THREE.MathUtils.clamp(
       this.pitch - pointer.y * this.rotateSpeed,
       MIN_PITCH,
@@ -48,6 +58,15 @@ export class ThirdPersonCamera {
         MAX_DISTANCE,
       );
     }
+  }
+
+  /** Gradually settles behind a moving character or vehicle after manual orbit. */
+  followHeading(delta:number,heading:number,moving:boolean):void {
+    this.manualOrbitPause=Math.max(0,this.manualOrbitPause-delta);
+    if(!moving||this.manualOrbitPause>0)return;
+    const desired=heading+Math.PI;
+    const difference=Math.atan2(Math.sin(desired-this.yaw),Math.cos(desired-this.yaw));
+    this.yaw+=difference*(1-Math.exp(-AUTO_FOLLOW_RATE*delta));
   }
 
   update(delta: number, target: THREE.Vector3): void {

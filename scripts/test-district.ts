@@ -4,11 +4,12 @@ import {planLaldighi,laldighiLayout,inLaldighi} from "../src/geography/PondLayou
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {buildRoadGeometry,type RoadData} from '../src/world/Roads';
-import {createHeightProvider} from '../src/geography/WorldHeight';
+import {createHeightProvider,createSurfaceProvider} from '../src/geography/WorldHeight';
 import {geoToLocal,localToGeo,localWorldBounds} from '../src/geography/Projection';
 import {RoadGraph} from '../src/navigation/RoadGraph';
 import {CITY_STOPS,shoreDistance,segmentDistance} from '../src/geography/CityGeography';
 import {CityStructures,type ElevatedRoad} from '../src/world/CityStructures';
+import {samplePath} from '../src/world/RoadPath';
 import {richVehicle} from '../src/world/RichVehicles';
 import {DISTRICT_PLACES} from '../src/world/DistrictLandmarks';
 import {PROMINENT_PLACES} from '../src/world/ProminentPlaces';
@@ -120,6 +121,17 @@ const target=new THREE.Vector3(-2,1.3,4);camera.update(.016,target);
 const ray=camera.camera.position.clone().sub(target),length=ray.length();ray.normalize();
 assert(collision.rayDistance(target,ray,length)>=length-.001,'Camera cannot see through a solid');
 assert(length>=4&&camera.camera.position.y>=1,'Camera retains a safe orbit and ground clearance');
+const followCamera=new ThirdPersonCamera(1.5);
+followCamera.yaw=0;
+for(let i=0;i<90;i++)followCamera.followHeading(.016,Math.PI/2,true);
+assert(Math.abs(Math.atan2(Math.sin(followCamera.yaw-3*Math.PI/2),Math.cos(followCamera.yaw-3*Math.PI/2)))<.06,'Follow camera turns behind moving character');
+const orbitInput={consumePointerDelta:()=>({x:40,y:0}),consumeWheelDelta:()=>0} as unknown as import('../src/player/Input').Input;
+followCamera.handleInput(orbitInput);
+const manualYaw=followCamera.yaw;
+for(let i=0;i<120;i++)followCamera.followHeading(.016,0,true);
+assert.equal(followCamera.yaw,manualYaw,'Manual orbit temporarily holds its chosen view');
+for(let i=0;i<90;i++)followCamera.followHeading(.016,0,true);
+assert(Math.abs(followCamera.yaw-manualYaw)>.1,'Camera resumes following after manual look pause');
 // A solid deck must have downward-facing geometry, visible from street level.
 let downward=0;structures.object.traverse(o=>{if(o instanceof THREE.Mesh){const n=o.geometry.getAttribute('normal');for(let i=0;i<n.count;i++)if(n.getY(i)<-.9)downward++;}});assert(downward>100);
 const traffic=new Traffic(roads,height,structures.paths);let trafficDraws=0;traffic.object.traverse(o=>{if(o instanceof THREE.Mesh)trafficDraws++;});assert(trafficDraws<=45,'Traffic wheels share one instanced draw');traffic.update(.1,true);
@@ -127,9 +139,20 @@ console.log(`PASS: wall sliding, roof clearance, camera obstruction, solid flyov
 
 const bah=structures.paths.find(p=>p.road.id==='bahaddarhat-flyover')!;
 for(let d=1;d<bah.path.total;d++)assert(Math.abs(bah.heightAt(d)-bah.heightAt(d-1))<.4,'Bahaddarhat ramp must not form a steep hump');
+for(const elevatedPath of structures.paths){
+  const d=elevatedPath.path.total/2,p=samplePath(elevatedPath.path,d);
+  const nx=Math.cos(p.yaw),nz=-Math.sin(p.yaw),y=elevatedPath.heightAt(d)+.15;
+  const [heldX,heldZ]=structures.constrainDrive(p.x,p.z,y,p.x+nx*20,p.z+nz*20,.95);
+  const lateralDistance=Math.min(...elevatedPath.path.points.slice(1).map((point,i)=>segmentDistance(heldX,heldZ,elevatedPath.path.points[i]!,point)));
+  assert(lateralDistance<=elevatedPath.road.width/2-.5,`${elevatedPath.road.id}: car stays inside elevated side wall (${lateralDistance})`);
+  assert.equal(createSurfaceProvider(height,structures)(heldX,heldZ,y),structures.deckTop(heldX,heldZ),'Guarded car remains on deck');
+}
+const rampStart=samplePath(bah.path,0);
+const openRamp=structures.constrainDrive(rampStart.x,rampStart.z,bah.heightAt(0),rampStart.x+15,rampStart.z+15,.95);
+assert.deepEqual(openRamp,[rampStart.x+15,rampStart.z+15],'Ground-level ramp entrance stays open');
 const market=new CityLife(roads,height,structures.paths.map(p=>p.road));
 for(const box of market.solids){const x=(box.minX+box.maxX)/2,z=(box.minZ+box.maxZ)/2;for(const r of [...roads,...elevated])for(let i=1;i<r.points.length;i++)assert(segmentDistance(x,z,r.points[i-1]!,r.points[i]!)>=r.width/2+7.99,'Market shops clear roads and flyover ramps');}
-console.log('PASS: gentle Bahaddarhat approaches and market road clearance.');
+console.log('PASS: flyover and bridge side walls contain vehicles while ramp entrances remain open; gentle Bahaddarhat approaches and market road clearance.');
 
 for(const road of roads)for(let i=1;i<road.points.length;i++)assert(segmentDistance(laldighiLayout.x,laldighiLayout.z,road.points[i-1]!,road.points[i]!)>=laldighiLayout.radius+road.width/2+4,'Laldighi parcel clears roads and walking paths');
 for(const b of neighborhood.buildings)assert(!inLaldighi(b.x,b.z,b.radius),'Buildings clear pond park');
@@ -151,10 +174,36 @@ console.log('PASS: rounded island corners underwater; continuous road centerline
 
 const {VehicleManager}=await import('../src/vehicles/VehicleManager');
 const {Player}=await import('../src/player/Player');
+const {PlayerController}=await import('../src/player/PlayerController');
 const {Vehicle}=await import('../src/vehicles/Vehicle');
+const walkingPlayer=new Player(),walkingCamera=new ThirdPersonCamera(1.5);
+walkingCamera.yaw=0;
+const interior=roads.flatMap(r=>r.points).find(p=>shoreDistance(...p)>30)!;
+walkingPlayer.position.set(interior[0],height(...interior),interior[1]);
+const walkingInput={moveForward:1,moveRight:1,sprinting:false,jumpPressed:false} as unknown as import('../src/player/Input').Input;
+const walkingController=new PlayerController(walkingPlayer,walkingInput,walkingCamera,height);
+const walkingStart=walkingPlayer.position.clone();
+for(let i=0;i<90;i++){
+  walkingController.update(.016);
+  walkingCamera.followHeading(.016,walkingPlayer.facing,true);
+}
+const walkDx=walkingPlayer.position.x-walkingStart.x,walkDz=walkingPlayer.position.z-walkingStart.z;
+assert(walkDx>2&&walkDz< -2&&Math.abs(walkDx+walkDz)<.3,`Automatic camera turn does not curve held diagonal walking input (${walkDx}, ${walkDz})`);
 const rider=new Player(),vehicleManager=new VehicleManager(new THREE.Scene(),()=>2);
 vehicleManager.summon('car',rider);assert(vehicleManager.toggleMount(rider));vehicleManager.syncRider(rider);assert.equal(rider.object.visible,false,'Enclosed car hides avatar feet');vehicleManager.toggleMount(rider);assert.equal(rider.object.visible,true,'Dismount restores avatar');
 vehicleManager.summon('bicycle',rider);assert(vehicleManager.toggleMount(rider));vehicleManager.syncRider(rider);assert.equal(rider.object.visible,true,'Bicycle keeps visible rider');vehicleManager.toggleMount(rider);
 for(const kind of ['car','bicycle'] as const){const v=new Vehicle(kind);v.place(0,0,0,()=>2);assert(v.object.visible&&Number.isFinite(v.object.position.y));}
+const deckSurface=createSurfaceProvider(height,structures);
+for(const elevatedPath of structures.paths){
+  const d=elevatedPath.path.total/2,p=samplePath(elevatedPath.path,d);
+  for(const kind of ['car','bicycle'] as const){
+    const v=new Vehicle(kind),nx=Math.cos(p.yaw),nz=-Math.sin(p.yaw);
+    v.place(p.x,p.z,Math.atan2(nx,nz),deckSurface,elevatedPath.heightAt(d)+.15);
+    for(let i=0;i<30;i++)v.update(.1,1,0,false,deckSurface,structures.constrainDrive.bind(structures));
+    const lateral=Math.min(...elevatedPath.path.points.slice(1).map((point,i)=>segmentDistance(v.object.position.x,v.object.position.z,elevatedPath.path.points[i]!,point)));
+    assert(lateral<=elevatedPath.road.width/2+.1,`${kind} remains on ${elevatedPath.road.id}`);
+    assert(v.object.position.y>height(v.object.position.x,v.object.position.z)+1.4,`${kind} does not fall from ${elevatedPath.road.id}`);
+  }
+}
 for(const kind of ['car','cng','rickshaw','bus'] as const){const v=richVehicle(kind,0xffaa44);assert(v.children.some(p=>p instanceof THREE.Mesh),'Vehicle body is merged');assert(v.children.filter(p=>p.userData.wheel).length>=3,'Vehicle wheels remain animated');}
-console.log('PASS: car rider hidden, bicycle rider visible, dismount restore, all vehicle families render.');
+console.log('PASS: car rider hidden, bicycle rider visible, dismount restore, all vehicle families render and stay on elevated roads.');

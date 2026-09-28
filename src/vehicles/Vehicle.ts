@@ -5,6 +5,7 @@ import { richVehicle } from "@/world/RichVehicles";
 import { clampToWorld } from "@/geography/Projection";
 
 export type VehicleKind = "car" | "bicycle";
+export type DriveConstraint = (fromX:number,fromZ:number,fromY:number,toX:number,toZ:number,radius:number)=>[number,number];
 
 const TYRE = 0x1b1b1f;
 const RIM = 0xc9ccd2;
@@ -73,6 +74,7 @@ export class Vehicle {
     steer: number,
     handbrake: boolean,
     getHeight: HeightProvider,
+    constrainDrive?: DriveConstraint,
   ): void {
     const spec = this.spec;
 
@@ -102,7 +104,11 @@ export class Vehicle {
 
     const dx = Math.sin(this.heading) * this.speed * delta;
     const dz = Math.cos(this.heading) * this.speed * delta;
-    const [nextX, nextZ] = clampToWorld(this.position.x + dx, this.position.z + dz, 12);
+    let [nextX, nextZ] = clampToWorld(this.position.x + dx, this.position.z + dz, 12);
+    if(constrainDrive){
+      [nextX,nextZ]=constrainDrive(this.position.x,this.position.z,this.position.y,nextX,nextZ,this.kind==="car"?.95:.4);
+      if(Math.hypot(nextX-this.position.x,nextZ-this.position.z)<Math.hypot(dx,dz)*.25)this.speed*=.35;
+    }
     const support = getHeight(nextX, nextZ, this.position.y);
     // Bridges carry the vehicle over water the ground would otherwise block.
     const onDeck = support - getHeight(nextX, nextZ) > 1.5;
