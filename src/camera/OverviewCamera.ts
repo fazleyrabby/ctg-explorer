@@ -68,7 +68,12 @@ export class OverviewCamera {
   /** Bird's-eye fly-pan with WASD; speed scales with zoom so far views cover ground. */
   move(delta: number, forward: number, right: number, sprint: boolean): void {
     if (forward === 0 && right === 0) return;
-    const speed = this.distance * .6 * (sprint ? 2.2 : 1);
+    // The original full-map zoom crossed the entire island in about a second,
+    // making W appear stuck at the boundary. Keep travel readable at every zoom.
+    const speed = THREE.MathUtils.clamp(this.distance * .14, 50, 300) * (sprint ? 2 : 1);
+    const magnitude=Math.max(1,Math.hypot(forward,right));
+    forward/=magnitude;
+    right/=magnitude;
     const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
     // Look direction on the ground is (-sin,-cos); right is (cos,-sin).
     this.focus.x += (-sin * forward + cos * right) * speed * delta;

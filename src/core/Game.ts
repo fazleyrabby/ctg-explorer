@@ -117,6 +117,7 @@ export class Game {
     private readonly canvas: HTMLCanvasElement,
     hudRoot: HTMLElement,
   ) {
+    canvas.tabIndex = 0;
     this.renderer = new Renderer(canvas);
     this.input = new Input(canvas);
     this.cameraRig = new ThirdPersonCamera(this.renderer.aspect);
@@ -135,6 +136,7 @@ export class Game {
     this.sceneManager.scene.add(this.lighting.object, this.player.object);
 
     canvas.addEventListener("pointerdown", (event) => {
+      canvas.focus({ preventScroll: true });
       this.clickStart = { x: event.clientX, y: event.clientY };
     });
     canvas.addEventListener("dblclick", this.onCanvasClick);
@@ -540,6 +542,7 @@ export class Game {
       this.cameraRig.snap();
       this.sceneManager.setFogFar(3600);
     }
+    this.canvas.focus({ preventScroll: true });
   }
 
   /** In overview, double-clicking the ground travels there and returns to follow. */
