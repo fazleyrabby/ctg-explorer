@@ -163,6 +163,24 @@ function buildBicycle(): THREE.Group {
   bar(0, 0.98, 0.5, 0.46, "x"); // handlebar
   bar(0, 0.45, 0.0, 0.18, "x"); // pedal crank
 
+  // Diagonal frame tubes, fenders and pedals make the bicycle read as a bike
+  // from both overview and walking distance without changing its ride controls.
+  const tube=(a:THREE.Vector3,b:THREE.Vector3,r:number,material:THREE.Material)=>{
+    const d=new THREE.Vector3().subVectors(b,a),mesh=new THREE.Mesh(new THREE.CylinderGeometry(r,r,d.length(),8),material);
+    mesh.position.copy(a).add(b).multiplyScalar(.5);mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());mesh.castShadow=true;group.add(mesh);
+  };
+  const rear=new THREE.Vector3(0,.34,-.55),front=new THREE.Vector3(0,.34,.55),crank=new THREE.Vector3(0,.52,0),head=new THREE.Vector3(0,1.02,.47),saddle=new THREE.Vector3(0,.94,-.44);
+  for(const [a,b] of [[rear,crank],[rear,saddle],[crank,saddle],[crank,head],[saddle,head],[head,front]] as Array<[THREE.Vector3,THREE.Vector3]>)tube(a,b,.035,frameMat);
+  for(const side of [-1,1]){
+    tube(new THREE.Vector3(side*.13,.52,0),new THREE.Vector3(side*.2,.48,.12),.035,rimMat);
+    const pedal=new THREE.Mesh(new THREE.BoxGeometry(.28,.04,.13),seatMat);pedal.position.set(side*.32,.48,.12);group.add(pedal);
+  }
+  for(const z of [-.55,.55]){
+    for(const side of [-1,1]){const spoke=new THREE.Mesh(new THREE.BoxGeometry(.025,.52,.025),rimMat);spoke.position.set(side*.045,.34,z);group.add(spoke);}
+    const mudguard=new THREE.Mesh(new THREE.TorusGeometry(.37,.026,5,20,Math.PI),frameMat);mudguard.rotation.y=Math.PI/2;mudguard.rotation.z=Math.PI;mudguard.position.set(0,.34,z);group.add(mudguard);
+  }
+  const light=new THREE.Mesh(new THREE.SphereGeometry(.09,8,6),new THREE.MeshStandardMaterial({color:0xffe49b,emissive:0xffc85b,emissiveIntensity:.45}));light.position.set(0,.98,.63);group.add(light);
+
   const seat = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.08, 0.34), seatMat);
   seat.position.set(0, 0.93, -0.46);
   seat.castShadow = true;

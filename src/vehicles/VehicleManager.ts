@@ -15,6 +15,7 @@ export class VehicleManager {
   private readonly car: Vehicle;
   private readonly bicycle: Vehicle;
   private active: Vehicle | null = null;
+  private lastSummoned: Vehicle | null = null;
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -37,6 +38,7 @@ export class VehicleManager {
     const x = player.position.x + Math.sin(player.facing) * SUMMON_DISTANCE;
     const z = player.position.z + Math.cos(player.facing) * SUMMON_DISTANCE;
     vehicle.place(x, z, player.facing, this.getHeight, player.position.y);
+    this.lastSummoned = vehicle;
   }
 
   /** Mounts the nearest vehicle, or dismounts if already riding. */
@@ -46,12 +48,16 @@ export class VehicleManager {
       return false;
     }
 
-    let best: Vehicle | null = null;
-    let bestDistance = MOUNT_RANGE;
+    const preferred = this.lastSummoned?.isVisible &&
+      this.lastSummoned.object.position.distanceTo(player.position) < MOUNT_RANGE
+      ? this.lastSummoned
+      : null;
+    let best: Vehicle | null = preferred;
+    let bestDistance = best ? best.object.position.distanceTo(player.position) : MOUNT_RANGE;
     for (const vehicle of [this.car, this.bicycle]) {
       if (!vehicle.isVisible) continue;
       const distance = vehicle.object.position.distanceTo(player.position);
-      if (distance < bestDistance) {
+      if (!preferred && distance < bestDistance) {
         best = vehicle;
         bestDistance = distance;
       }
@@ -59,7 +65,9 @@ export class VehicleManager {
     if (!best) return false;
 
     this.active = best;
-    player.object.visible = true;
+    // The enclosed car uses dark windows; hide the full avatar so neither
+    // shoes nor limbs poke through the floor. Keep the bicycle rider visible.
+    player.object.visible = best.kind === "bicycle";
     return true;
   }
 
