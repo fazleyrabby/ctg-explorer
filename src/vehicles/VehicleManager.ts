@@ -3,6 +3,7 @@ import type { HeightProvider } from "@/geography/WorldHeight";
 import type { Player } from "@/player/Player";
 import type { Input } from "@/player/Input";
 import { Vehicle, type DriveConstraint, type VehicleKind } from "@/vehicles/Vehicle";
+import type { Colliders } from "@/world/Colliders";
 
 const SUMMON_DISTANCE = 3.5;
 const MOUNT_RANGE = 6;
@@ -16,6 +17,8 @@ export class VehicleManager {
   private readonly bicycle: Vehicle;
   private active: Vehicle | null = null;
   private lastSummoned: Vehicle | null = null;
+  /** Building footprints the vehicles slide along; unset means no building collision. */
+  colliders?: Colliders;
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -38,7 +41,7 @@ export class VehicleManager {
 
     const x = player.position.x + Math.sin(player.facing) * SUMMON_DISTANCE;
     const z = player.position.z + Math.cos(player.facing) * SUMMON_DISTANCE;
-    vehicle.place(x, z, player.facing, this.getHeight, player.position.y);
+    vehicle.place(x, z, player.facing, this.getHeight, player.position.y, this.colliders);
     this.lastSummoned = vehicle;
   }
 
@@ -99,7 +102,10 @@ export class VehicleManager {
 
     const px = vehicle.object.position.x + Math.cos(vehicle.heading) * 1.4;
     const pz = vehicle.object.position.z - Math.sin(vehicle.heading) * 1.4;
-    player.position.set(px, this.getHeight(px, pz, vehicle.object.position.y), pz);
+    player.position.set(px, vehicle.object.position.y, pz);
+    // Step out beside the vehicle, never into the wall it is parked against.
+    this.colliders?.resolve(player.position, 0.35);
+    player.position.y = this.getHeight(player.position.x, player.position.z, vehicle.object.position.y);
     player.velocity.set(0, 0, 0);
     player.object.visible = true;
     player.sync();
@@ -116,6 +122,7 @@ export class VehicleManager {
       input.jumpPressed,
       this.getHeight,
       this.constrainDrive,
+      this.colliders,
     );
   }
 

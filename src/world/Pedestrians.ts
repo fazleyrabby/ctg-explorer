@@ -23,6 +23,8 @@ export class Pedestrians {
   }
   this.update(0);
  }
+ /** Shows only the first `fraction` of walkers (quality presets). */
+ setDensity(fraction:number):void{const count=Math.round(this.walkers.length*fraction);for(const p of this.parts)p.mesh.count=count;}
  update(delta:number):void{
   this.time+=delta;const base=new THREE.Matrix4(),local=new THREE.Matrix4(),out=new THREE.Matrix4(),q=new THREE.Quaternion(),pos=new THREE.Vector3(),scale=new THREE.Vector3(1.15,1.15,1.15),rot=new THREE.Quaternion();
   for(let i=0;i<this.walkers.length;i++){

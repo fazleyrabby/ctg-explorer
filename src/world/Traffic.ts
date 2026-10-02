@@ -26,15 +26,17 @@ export class Traffic {
   }
   this.update(0,false);
  }
+ /** Shows only the first `fraction` of ambient vehicles (quality presets). */
+ setDensity(fraction:number):void{const count=Math.round(this.movers.length*fraction);this.movers.forEach((m,i)=>{m.object.visible=i<count;});}
  update(delta:number,_night:boolean):void{
   let wheelIndex=0;
-  for(const m of this.movers){m.distance+=delta*m.speed;const cycle=m.distance%(m.path.total*2),forward=cycle<m.path.total,d=forward?cycle:m.path.total*2-cycle;
+  for(const m of this.movers){if(!m.object.visible)continue;m.distance+=delta*m.speed;const cycle=m.distance%(m.path.total*2),forward=cycle<m.path.total,d=forward?cycle:m.path.total*2-cycle;
     const p=samplePath(m.path,d),offset=m.path.width*.22*(forward?1:-1),x=p.x-Math.cos(p.yaw)*offset,z=p.z+Math.sin(p.yaw)*offset;
     m.object.position.set(x,(m.heightAt?m.heightAt(d):this.ground(x,z))+.22,z);m.object.rotation.y=p.yaw+(forward?0:Math.PI);
     for(const w of m.wheels)w.rotation.x+=delta*m.speed/.37*(forward?1:-1);
     m.object.updateMatrixWorld(true);
     for(const w of m.wheels){this.wheelMatrix.copy(w.matrixWorld);this.wheelBatch?.setMatrixAt(wheelIndex++,this.wheelMatrix);}
   }
-  if(this.wheelBatch)this.wheelBatch.instanceMatrix.needsUpdate=true;
+  if(this.wheelBatch){this.wheelBatch.count=wheelIndex;this.wheelBatch.instanceMatrix.needsUpdate=true;}
  }
 }

@@ -42,8 +42,12 @@ Building/player and follow-camera collision share a static spatial grid. Elevate
 
 Performance: traffic submissions reduced from 204 to 45 by instancing wheels; app/core/effects bundles split. See [current progress](../progress.md) for measurements and limitations.
 
+## Update 2026-10-02
+
+Quality presets (pixel-ratio cap, sun shadows, crowd density), touch controls, vehicle–building collision and outline-accurate collision for mapped buildings are implemented. See [current progress](../progress.md).
+
 ## Remaining broader work
 
-- Full vehicle physics and collision.
-- Device-specific FPS profiling and optional quality settings.
+- Vehicle-to-vehicle collision and physics beyond the arcade model.
+- FPS profiling on physical phones; automatic preset selection from measured frame time.
 - Large-world streaming only if the compact scope grows.

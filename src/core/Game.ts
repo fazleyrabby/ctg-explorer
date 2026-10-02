@@ -1,6 +1,8 @@
 import {planRailway,railPoint,railwayLayout} from "@/geography/RailwayLayout";
 import {Railway} from "@/world/Railway";
 import {planLaldighi} from "@/geography/PondLayout";
+import {planShopRows} from "@/geography/ShopRowLayout";
+import {ShopRows} from "@/world/ShopRows";
 import {NightLights} from '@/world/NightLights';
 import {Colliders} from '@/world/Colliders';
 import {UrbanFabric} from '@/world/UrbanFabric';
@@ -44,7 +46,10 @@ import { LandmarkManager } from "@/landmarks/LandmarkManager";
 import { TimeOfDay } from "@/world/TimeOfDay";
 import { QuestBeacon } from "@/world/QuestBeacon";
 import { QuestManager } from "@/quests/QuestManager";
-import { CHEARGI_WALK } from "@/quests/quest";
+import { QUESTS } from "@/quests/quest";
+import { SaveGame } from "@/core/SaveGame";
+import { QUALITY, defaultQuality, isTouchDevice, type QualityLevel } from "@/core/Quality";
+import { TouchControls } from "@/ui/TouchControls";
 import { Notebook } from "@/ui/Notebook";
 import { RoadGraph } from "@/navigation/RoadGraph";
 import { Navigation } from "@/navigation/Navigation";
@@ -109,6 +114,7 @@ export class Game {
   private fxLoading=false;
   private readonly audio = new AudioManager();
   private readonly timeOfDay = new TimeOfDay();
+  private readonly save = new SaveGame();
   private gpsWatchId: number | null = null;
   private gpsTracking = false;
   private running = false;
@@ -173,6 +179,10 @@ export class Game {
     const buildings = await Buildings.load(this.getHeight);
     planLaldighi([...roads.roads,...structures.paths.map(p=>p.road)],buildings.list);
     planRailway([...roads.roads,...structures.paths.map(p=>p.road)],buildings.list);
+    // Old-town shop rows reserve their parcels before any infill is generated.
+    planShopRows(roads.roads,structures.paths.map(p=>p.road),buildings.list);
+    const shopRows=new ShopRows(this.getHeight);
+    this.sceneManager.scene.add(shopRows.object);
     this.railway=new Railway(this.getHeight);
     this.sceneManager.scene.add(this.railway.object);
     buildings.named.push(...this.railway.named);
@@ -198,7 +208,7 @@ export class Game {
     buildings.named.push(...this.prominentPlaces.named);
     this.sceneManager.scene.add(this.prominentPlaces.object);
     const colliders=new Colliders(buildings.list,this.getHeight);
-    for(const source of [this.neighborhoods,fabric,this.cityLife,this.maritime,this.railway,districtLandmarks,this.prominentPlaces])for(const solid of source.solids)colliders.addBox(solid);
+    for(const source of [this.neighborhoods,fabric,this.cityLife,this.maritime,this.railway,districtLandmarks,this.prominentPlaces,shopRows])for(const solid of source.solids)colliders.addBox(solid);
     this.controller.colliders=colliders;this.cameraRig.colliders=colliders;this.cameraRig.getHeight=this.getHeight;
     const landmarkDetails = LandmarkDetails.build(
       buildings.list,
@@ -207,7 +217,7 @@ export class Game {
     );
     const streetProps = new StreetProps(roads.roads, this.getHeight, structures.paths.map(p=>p.road));
     this.streetProps=streetProps;this.litBuildings=buildings;
-    this.nightLights=new NightLights([this.neighborhoods.object,fabric.object,this.prominentPlaces.object]);
+    this.nightLights=new NightLights([this.neighborhoods.object,fabric.object,this.prominentPlaces.object,shopRows.object]);
     this.pedestrians = new Pedestrians(roads.roads, this.getHeight);
     this.traffic = new Traffic(roads.roads, this.getHeight, structures.paths);
     this.navigation = new Navigation(
@@ -227,21 +237,27 @@ export class Game {
     const beacon = new QuestBeacon(this.getHeight);
     this.beacon = beacon;
     this.sceneManager.scene.add(beacon.object);
-    this.notebook = new Notebook(document.body, buildings.named.length, (name) =>
-      this.landmarks?.selectByName(name),
+    this.notebook = new Notebook(
+      document.body,
+      buildings.named.length,
+      (name) => this.landmarks?.selectByName(name),
+      () => this.resetProgress(),
     );
-    this.quest = new QuestManager(CHEARGI_WALK, buildings.named, this.hud, beacon);
+    this.quest = new QuestManager(QUESTS, buildings.named, this.hud, beacon, (id) => this.save.setQuest(id));
+    if (this.save.data.quest) this.quest.select(this.save.data.quest);
 
     const landmarkPanel = new LandmarkPanel(document.body);
     this.landmarks = new LandmarkManager(
       buildings.named,
       landmarkPanel,
       this.hud,
-      (landmark) => {
+      (landmark, restored) => {
         this.notebook?.add(landmark);
         this.quest?.notifyDiscovered(landmark.name);
+        if (!restored) this.save.addDiscovery(landmark.id);
       },
     );
+    this.landmarks.restore(this.save.data.discovered);
     this.labels = new WorldLabels(buildings.named, this.getHeight, (name) =>
       this.landmarks?.selectByName(name),
     );
@@ -253,6 +269,7 @@ export class Game {
       (x, z) => this.travelTo(x, z),
     );
     this.vehicles = new VehicleManager(this.sceneManager.scene, this.getHeight, structures.constrainDrive.bind(structures));
+    this.vehicles.colliders = colliders;
     this.searchBox = new SearchBox(
       document.body,
       buildSearchIndex(buildings.named, roads.roads),
@@ -267,6 +284,12 @@ export class Game {
 
     this.spawnPlayer();
     this.setupDistrictControls(buildings.named);
+    if (isTouchDevice()) new TouchControls(document.body, this.input);
+    this.applyQuality(this.save.data.quality ?? defaultQuality());
+    this.hud.setQualityControl(this.save.data.quality ?? defaultQuality(), (level) => {
+      this.applyQuality(level as QualityLevel);
+      this.save.setQuality(level as QualityLevel);
+    });
     this.toggleOverview();
 
     // Try to start the player at the device's real location (spec §54 extension).
@@ -315,6 +338,24 @@ export class Game {
       if(this.mode === "overview") this.toggleOverview();
     });
     toolbar.append(beach, overview, select, home); document.body.append(toolbar);
+  }
+
+  /** Applies a graphics preset: resolution cap, sun shadows and ambient crowd density. */
+  private applyQuality(level: QualityLevel): void {
+    const settings = QUALITY[level];
+    this.renderer.setMaxPixelRatio(settings.pixelRatio);
+    this.postfx?.setSize(window.innerWidth, window.innerHeight);
+    this.lighting.setShadowQuality(settings.shadowMapSize);
+    this.pedestrians?.setDensity(settings.crowd);
+    this.traffic?.setDensity(settings.crowd);
+  }
+
+  /** Clears saved discoveries and quest progress (History Notebook → Reset progress). */
+  private resetProgress(): void {
+    this.save.resetProgress();
+    this.landmarks?.reset();
+    this.notebook?.clear();
+    this.quest?.reset();
   }
 
   private async loadAvatar(): Promise<void> {
@@ -388,6 +429,7 @@ export class Game {
     this.cameraRig.resize(width / height);
     this.overview?.resize(width / height);
     this.postfx?.setSize(width, height);
+    this.minimap?.resize();
   };
 
   start(): void {

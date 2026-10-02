@@ -18,6 +18,10 @@ Reference: [Jalan KL](https://kl.jalanmalaysia.com/), inspected in its globe and
 - Keep hero landmarks more detailed than background buildings. From overview, visitors should recognise each district by its skyline and roof pattern; at walking scale, doors and street-level details should carry the scene.
 - Reuse geometry and materials across variants to retain the current draw-call budget. Keep road and flyover clearance and the compact playable bounds.
 
+## Status
+
+Step 1 is implemented (2026-10-02): `src/geography/ShopRowLayout.ts` reserves the parcels and `src/world/ShopRows.ts` builds them. Steps 2–5 are open; the civic anchors (step 3) are the suggested next pass.
+
 ## First implementation pass
 
 Start with the old-town shop rows and a small set of roadside stalls around Chawkbazar/Anderkilla. They will replace the most obvious repetitive mid-rise pattern in the current overview and offer the clearest Jalan KL-inspired improvement without changing the world layout.

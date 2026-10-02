@@ -6,6 +6,7 @@ import type { Player } from "@/player/Player";
 
 const SMALL = { size: 190, span: 400 };
 const LARGE = { size: 400, span: 1800 };
+const COMPACT_SIZE = 132;
 const MARGIN = 300;
 
 interface Pin {
@@ -97,8 +98,16 @@ export class Minimap {
     this.canvas.addEventListener("pointerdown", this.onPointerDown);
   }
 
+  /** Refits the map to the window; also called when the window is resized. */
+  resize(): void {
+    this.applySize();
+  }
+
   private applySize(): void {
-    this.size = Math.min(this.large ? LARGE.size : SMALL.size, window.innerWidth - 32);
+    // A window that reports no width yet (hidden tab) must not produce a negative canvas.
+    // Phones get a smaller corner map so it sits beside the quest tracker.
+    const small = window.innerWidth < 760 ? COMPACT_SIZE : SMALL.size;
+    this.size = Math.max(96, Math.min(this.large ? LARGE.size : small, window.innerWidth - 32));
     const dpr = Math.min(window.devicePixelRatio, 2);
     this.canvas.width = this.size * dpr;
     this.canvas.height = this.size * dpr;

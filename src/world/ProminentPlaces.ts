@@ -1,5 +1,6 @@
 import {inRailway} from "@/geography/RailwayLayout";
 import {inLaldighi} from "@/geography/PondLayout";
+import {inShopRows} from "@/geography/ShopRowLayout";
 import {solidBox} from '@/world/SolidFootprints';
 import type {CollisionBox} from '@/world/Colliders';
 import * as THREE from 'three';
@@ -40,6 +41,30 @@ export function inProminentDistrict(x: number, z: number, margin = 0): boolean {
   return PROMINENT_AREAS.some(a => Math.hypot(x - a.x, z - a.z) < a.radius + margin);
 }
 
+/**
+ * Nudges a cluster to the nearby spot with the most road clearance, so a
+ * warehouse row never spans a road. Shared with parcel planners that must
+ * keep clear of the built cluster rather than of its geographic anchor.
+ */
+export function prominentSite(place: ProminentPlace, roads: RoadData[]): {x: number; z: number} {
+  const bounds = localWorldBounds(), anchor = geoToLocal(place);
+  let x = anchor.x, z = anchor.z, best = -Infinity;
+  for (let dx = -70; dx <= 70; dx += 10) for (let dz = -70; dz <= 70; dz += 10) {
+    const tx = anchor.x + dx, tz = anchor.z + dz;
+    if (tx < bounds.minX + 45 || tx > bounds.maxX - 45 || tz < bounds.minZ + 45 || tz > bounds.maxZ - 45) continue;
+    if (inRailway(tx,tz,60)||inLaldighi(tx,tz,60)) continue;
+    if (shoreDistance(tx, tz) < 45) continue;
+    let clear = Infinity;
+    for (const road of roads) for (let i = 1; i < road.points.length; i++) {
+      const d = segmentDistance(tx, tz, road.points[i - 1]!, road.points[i]!) - road.width / 2;
+      if (d < clear) clear = d;
+    }
+    const score = Math.min(clear, 70) - Math.hypot(dx, dz) * .12;
+    if (score > best) { best = score; x = tx; z = tz; }
+  }
+  return {x, z};
+}
+
 export class ProminentPlaces {
  readonly solids:CollisionBox[]=[];
   readonly object = new THREE.Group();
@@ -65,30 +90,14 @@ export class ProminentPlaces {
     };
 
     for (const place of PROMINENT_PLACES) {
-      const anchor = geoToLocal(place);
-      // Nudge the cluster to the spot with the most road clearance nearby, so
-      // a warehouse row never spans a road or an existing building.
-      let x = anchor.x, z = anchor.z, best = -Infinity;
-      for (let dx = -70; dx <= 70; dx += 10) for (let dz = -70; dz <= 70; dz += 10) {
-        const tx = anchor.x + dx, tz = anchor.z + dz;
-        if (tx < bounds.minX + 45 || tx > bounds.maxX - 45 || tz < bounds.minZ + 45 || tz > bounds.maxZ - 45) continue;
-        if (inRailway(tx,tz,60)||inLaldighi(tx,tz,60)) continue;
-        if (shoreDistance(tx, tz) < 45) continue;
-        let clear = Infinity;
-        for (const road of roads) for (let i = 1; i < road.points.length; i++) {
-          const d = segmentDistance(tx, tz, road.points[i - 1]!, road.points[i]!) - road.width / 2;
-          if (d < clear) clear = d;
-        }
-        const score = Math.min(clear, 70) - Math.hypot(dx, dz) * .12;
-        if (score > best) { best = score; x = tx; z = tz; }
-      }
+      const {x, z} = prominentSite(place, roads);
       const y = height(x, z);
       this.named.push({...place, x, z});
       const ground = (lx: number, lz: number) => height(x + lx, z + lz) - y;
       const safe = (lx: number, lz: number, r: number): boolean => {
         const px = x + lx, pz = z + lz;
         if (px < bounds.minX + 8 || px > bounds.maxX - 8 || pz < bounds.minZ + 8 || pz > bounds.maxZ - 8) return false;
-        if (inRailway(px,pz,r)||inLaldighi(px,pz,r)) return false;
+        if (inRailway(px,pz,r)||inLaldighi(px,pz,r)||inShopRows(px,pz,r)) return false;
         if (shoreDistance(px, pz) < 8) return false;
         for (const road of roads) for (let i = 1; i < road.points.length; i++) {
           if (segmentDistance(px, pz, road.points[i - 1]!, road.points[i]!) < road.width / 2 + r + 2) return false;

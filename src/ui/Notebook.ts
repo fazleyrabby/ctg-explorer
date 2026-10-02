@@ -18,6 +18,7 @@ export class Notebook {
     parent: HTMLElement,
     private total: number,
     private readonly onSelect: (name: string) => void,
+    private readonly onReset?: () => void,
   ) {
     this.root = document.createElement("div");
     this.root.className = "notebook";
@@ -32,6 +33,10 @@ export class Notebook {
       </div>
       <div class="notebook__hint">Walk up to places to record them. Click a story to read it.</div>
       <div class="notebook__list" data-list></div>
+      <div class="notebook__foot">
+        <span>Progress is saved in this browser.</span>
+        <button class="notebook__reset" type="button">Reset progress</button>
+      </div>
     `;
     parent.appendChild(this.root);
 
@@ -40,6 +45,11 @@ export class Notebook {
     (this.root.querySelector(".notebook__close") as HTMLButtonElement).addEventListener("click", () =>
       this.close(),
     );
+
+    (this.root.querySelector(".notebook__reset") as HTMLButtonElement).addEventListener("click", () => {
+      if (this.entries.length === 0) return;
+      if (window.confirm("Forget every recorded place and quest stop?")) this.onReset?.();
+    });
 
     // Click outside closes it.
     document.addEventListener("pointerdown", (event) => {
@@ -62,6 +72,14 @@ export class Notebook {
     if (this.seen.has(landmark.id)) return;
     this.seen.add(landmark.id);
     this.entries.push(landmark);
+    this.updateCount();
+    if (this.opened) this.render();
+  }
+
+  /** Empties the log (used by Reset progress). */
+  clear(): void {
+    this.seen.clear();
+    this.entries.length = 0;
     this.updateCount();
     if (this.opened) this.render();
   }

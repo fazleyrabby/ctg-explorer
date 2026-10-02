@@ -214,3 +214,94 @@ for(const elevatedPath of structures.paths){
 }
 for(const kind of ['car','cng','rickshaw','bus'] as const){const v=richVehicle(kind,0xffaa44);assert(v.children.some(p=>p instanceof THREE.Mesh),'Vehicle body is merged');assert(v.children.filter(p=>p.userData.wheel).length>=3,'Vehicle wheels remain animated');}
 console.log('PASS: car rider hidden, bicycle rider visible, dismount restore, all vehicle families render and stay on elevated roads.');
+
+// Old-town shop rows: reserved parcels, road/flyover clearance and infill exclusion.
+const {planShopRows,shopRows,inShopRows,rowToWorld,SHOP_FRONTAGE}=await import('../src/geography/ShopRowLayout');
+const {ShopRows}=await import('../src/world/ShopRows');
+planShopRows(roads,elevated,buildings);
+assert(shopRows.length>=12,`Old town receives shop rows (${shopRows.length})`);
+for(const district of ['chawkbazar','anderkilla','khatunganj'])assert(shopRows.filter(r=>r.district===district).length>=3,`${district} has shop rows`);
+for(const row of shopRows){
+  assert(row.units.length>=3&&row.units.length<=5);
+  for(const unit of row.units){
+    assert(unit.floors>=2&&unit.floors<=4,'Shops are two to four storeys');
+    for(const lz of [-row.depth/2,0,row.depth/2])for(const lx of [unit.offset-unit.width/2,unit.offset,unit.offset+unit.width/2]){
+      const [x,z]=rowToWorld(row,lx,lz);
+      assert(shoreDistance(x,z)>8&&!inRailway(x,z)&&!inLaldighi(x,z),'Shop rows stay on dry, unreserved land');
+      for(const r of roads)for(let i=1;i<r.points.length;i++)assert(segmentDistance(x,z,r.points[i-1]!,r.points[i]!)>=r.width/2+1.5,'Shop facades clear every carriageway');
+      for(const r of elevated)for(let i=1;i<r.points.length;i++)assert(segmentDistance(x,z,r.points[i-1]!,r.points[i]!)>=r.width/2+7,'Shop rows clear flyover decks and ramps');
+      assert(!buildings.some(b=>{const xs=b.ring.map(p=>p[0]),zs=b.ring.map(p=>p[1]);return x>Math.min(...xs)&&x<Math.max(...xs)&&z>Math.min(...zs)&&z<Math.max(...zs);}),'Shop rows clear mapped buildings');
+    }
+  }
+  // Each row fronts a street across its paved frontage.
+  const [fx,fz]=rowToWorld(row,0,row.depth/2+SHOP_FRONTAGE);
+  assert(Math.min(...roads.flatMap(r=>r.points.slice(1).map((b,i)=>segmentDistance(fx,fz,r.points[i]!,b)-r.width/2)))<1.5,'Shop row faces a street');
+  for(const other of shopRows)if(other!==row)assert(Math.hypot(other.x-row.x,other.z-row.z)>6,'Rows do not stack');
+}
+const shopNeighborhood=new Neighborhoods(roads,buildings,height),shopFabric=new UrbanFabric(roads,buildings,shopNeighborhood,height);
+assert(shopNeighborhood.buildings.length>100&&shopNeighborhood.trees.length>=350&&shopFabric.plots.length>200,'Infill density survives the shop-row reservation');
+for(const b of shopNeighborhood.buildings)assert(!inShopRows(b.x,b.z,b.radius),'Infill buildings clear shop rows');
+for(const p of shopFabric.plots)assert(!inShopRows(p.x,p.z,p.radius),'Infill blocks clear shop rows');
+const shops=new ShopRows(height);let shopDraws=0;shops.object.traverse(o=>{if(o instanceof THREE.Mesh)shopDraws++;});
+assert.equal(shopDraws,1,'All shop rows share one merged draw');
+assert.equal(shops.unitCount,shopRows.reduce((n,r)=>n+r.units.length,0));assert(shops.solids.length>=shops.unitCount);
+const shopPosition=(shops.object.children[0] as import('three').Mesh).geometry.getAttribute('position');
+assert(Array.from(shopPosition.array).every(Number.isFinite));
+console.log(`PASS: ${shopRows.length} old-town shop rows, ${shops.unitCount} shops and ${shops.stallCount} tea stalls in one draw; road, flyover, building and infill clearances passed.`);
+
+// Vehicles slide along building walls instead of driving through them.
+const wallCar=new Vehicle('car');wallCar.place(-12,4,Math.PI/2,()=>0);
+for(let i=0;i<120;i++)wallCar.update(.05,1,0,false,()=>0,undefined,collision);
+assert(wallCar.object.position.x<=-1.24,`Car stops at a wall (${wallCar.object.position.x})`);
+assert(Math.abs(wallCar.speed)<1.5,'A head-on wall hit sheds the car speed');
+const freeCar=new Vehicle('car');freeCar.place(-12,30,Math.PI/2,()=>0);
+for(let i=0;i<40;i++)freeCar.update(.05,1,0,false,()=>0,undefined,collision);
+assert(freeCar.object.position.x>10,'Open ground stays drivable');
+const insideCar=new Vehicle('car');insideCar.place(4,4,0,()=>0,0,collision);
+assert(insideCar.object.position.x<-1.2||insideCar.object.position.x>9.2||insideCar.object.position.z<-1.2||insideCar.object.position.z>9.2,'A car is never summoned inside a building');
+// Mapped footprints use conservative boxes; main streets must still be passable by car.
+const cityColliders=new Colliders(buildings,height);
+for(const source of [shopNeighborhood,shopFabric,shops])for(const box of source.solids)cityColliders.addBox(box);
+let roadSamples=0,roadBlocked=0;const roadProbe=new THREE.Vector3();
+for(const road of roads)for(let i=1;i<road.points.length;i++){
+  const a=road.points[i-1]!,b=road.points[i]!,steps=Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1])/3);
+  for(let j=0;j<=steps;j++){const x=a[0]+(b[0]-a[0])*j/steps,z=a[1]+(b[1]-a[1])*j/steps;roadProbe.set(x,height(x,z),z);cityColliders.resolve(roadProbe,1.25);roadSamples++;if(Math.hypot(roadProbe.x-x,roadProbe.z-z)>road.width/2)roadBlocked++;}
+}
+assert.equal(roadBlocked,0,`Cars can follow every road centreline (${roadBlocked} of ${roadSamples} samples pushed off the carriageway)`);
+console.log(`PASS: vehicle wall sliding, summon clearance and ${roadSamples} unobstructed road-centreline samples.`);
+
+// Quests and saved progress.
+const {QUESTS}=await import('../src/quests/quest');
+const {QuestManager}=await import('../src/quests/QuestManager');
+const {Maritime}=await import('../src/world/Maritime');
+const questPlaces=[...destinations.map(p=>p.name),...new Maritime().named.map(p=>p.name)];
+assert(QUESTS.length>=4&&new Set(QUESTS.map(q=>q.id)).size===QUESTS.length);
+for(const quest of QUESTS){assert(quest.stops.length>=5);for(const stop of quest.stops)assert(questPlaces.includes(stop.landmark),`${quest.id}: unknown stop ${stop.landmark}`);}
+const hudLog:string[]=[];
+const fakeHud={setQuestChoices:()=>{},setQuest:(id:string,_s:string,objective:string|null,done:number,total:number)=>hudLog.push(`${id}:${objective}:${done}/${total}`)} as unknown as import('../src/ui/HUD').HUD;
+const fakeBeacon={setTarget:()=>{}} as unknown as import('../src/world/QuestBeacon').QuestBeacon;
+const questManager=new QuestManager(QUESTS,[],fakeHud,fakeBeacon);
+questManager.notifyDiscovered('Laldighi');assert.equal(questManager.completed,1);
+questManager.select('old-town-bazaars');assert.equal(questManager.activeId,'old-town-bazaars');
+assert.equal(questManager.completed,1,'A visit counts for every route that includes the place');
+assert.equal(questManager.currentStop()!.landmark,'Chittagong New Market');
+questManager.reset();assert.equal(questManager.completed,0);assert.equal(questManager.activeId,QUESTS[0]!.id);
+const store=new Map<string,string>();
+(globalThis as unknown as {localStorage:unknown}).localStorage={getItem:(k:string)=>store.get(k)??null,setItem:(k:string,v:string)=>{store.set(k,v);}};
+const {SaveGame}=await import('../src/core/SaveGame');
+const firstSave=new SaveGame();firstSave.addDiscovery('laldighi');firstSave.addDiscovery('laldighi');firstSave.setQuest('rails-and-port');firstSave.setQuality('low');
+const reloaded=new SaveGame();assert.deepEqual(reloaded.data,{discovered:['laldighi'],quest:'rails-and-port',quality:'low'},'Progress survives a reload');
+reloaded.resetProgress();assert.deepEqual(new SaveGame().data,{discovered:[],quality:'low'},'Reset keeps display preferences');
+store.set('chattogram:save','{not json');assert.deepEqual(new SaveGame().data,{discovered:[]},'Corrupt storage falls back to a fresh save');
+console.log(`PASS: ${QUESTS.length} quests with known stops, shared discoveries, and save/reload/reset of progress.`);
+
+// Touch joystick axes and virtual keys reach the same input state as the keyboard.
+const {Input}=await import('../src/player/Input');
+const listeners={addEventListener:()=>{},removeEventListener:()=>{}};
+(globalThis as unknown as {window:unknown}).window=listeners;
+const touchInput=new Input(listeners as unknown as HTMLCanvasElement);
+touchInput.setVirtualMove(.4,-1,true);assert.equal(touchInput.moveForward,1);assert.equal(touchInput.moveRight,-1);assert(touchInput.sprinting);
+touchInput.setVirtualKey('KeyF',true);assert(touchInput.wasPressed('KeyF')&&touchInput.isDown('KeyF'));
+touchInput.endFrame();assert(!touchInput.wasPressed('KeyF'));touchInput.setVirtualKey('KeyF',false);assert(!touchInput.isDown('KeyF'));
+touchInput.setVirtualMove(0,0,false);assert.equal(touchInput.moveForward,0);assert(!touchInput.sprinting);
+console.log('PASS: touch joystick and on-screen buttons drive the shared input state.');

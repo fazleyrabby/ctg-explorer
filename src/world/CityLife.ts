@@ -1,5 +1,6 @@
 import {inRailway} from "@/geography/RailwayLayout";
 import {inLaldighi} from "@/geography/PondLayout";
+import {inShopRows} from "@/geography/ShopRowLayout";
 import {solidBox} from '@/world/SolidFootprints';
 import type {CollisionBox} from '@/world/Colliders';
 import {inPortDistrict} from '@/geography/PortLayout';
@@ -24,13 +25,13 @@ export class CityLife {
   };
   const box=(w:number,h:number,d:number,color:number,x:number,y:number,z:number,angle=0)=>add(new THREE.BoxGeometry(w,h,d),color,x,y,z,angle);
   const palm=(x:number,z:number,size=1)=>{
-    if(inRailway(x,z,6*size)||inLaldighi(x,z,6*size))return;
+    if(inRailway(x,z,6*size)||inLaldighi(x,z,6*size)||inShopRows(x,z,3*size))return;
     if(elevated.some(r=>r.points.slice(1).some((b,i)=>segmentDistance(x,z,r.points[i]!,b)<r.width/2+6*size)))return;
     const y=height(x,z);add(new THREE.CylinderGeometry(.32*size,.55*size,8*size,7),0xc29454,x,y+4*size,z);
     for(let k=0;k<7;k++){const angle=k*Math.PI*2/7;const leaf=new THREE.SphereGeometry(1,6,4).scale(1.1*size,.3*size,4*size).rotateX(-.25).translate(0,0,2*size);add(leaf,k%2?0x25ae62:0x68d647,x,y+8*size,z,angle);}
   };
   const shop=(x:number,z:number,angle:number,index:number)=>{
-    if(inRailway(x,z,8)||inLaldighi(x,z,8))return;
+    if(inRailway(x,z,8)||inLaldighi(x,z,8)||inShopRows(x,z,6))return;
     // Include the full stall/awning footprint and every crossing road.
     if([...roads,...elevated].some(r=>r.points.slice(1).some((b,i)=>segmentDistance(x,z,r.points[i]!,b)<r.width/2+8)))return;
     const y=height(x,z),palette=[0xff915c,0x48c6ba,0xffd65c,0xf58cac];

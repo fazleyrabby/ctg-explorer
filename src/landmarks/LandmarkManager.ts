@@ -20,7 +20,7 @@ export class LandmarkManager {
     private readonly landmarks: NamedBuilding[],
     private readonly panel: LandmarkPanel,
     private readonly hud: HUD,
-    private readonly onDiscover?: (landmark: NamedBuilding) => void,
+    private readonly onDiscover?: (landmark: NamedBuilding, restored: boolean) => void,
   ) {}
 
   update(player: Player, input: Input): void {
@@ -34,7 +34,7 @@ export class LandmarkManager {
       // Discovery: reaching a landmark records it (notebook + quest).
       if (distance < DISCOVER_RANGE && !this.discovered.has(landmark.id)) {
         this.discovered.add(landmark.id);
-        this.onDiscover?.(landmark);
+        this.onDiscover?.(landmark, false);
       }
 
       if (distance < bestDistance) {
@@ -52,6 +52,21 @@ export class LandmarkManager {
     if (input.wasPressed("Escape")) {
       this.panel.hide();
     }
+  }
+
+  /** Re-records saved discoveries (ids) without the visitor walking there again. */
+  restore(ids: readonly string[]): void {
+    for (const id of ids) {
+      const landmark = this.landmarks.find((item) => item.id === id);
+      if (!landmark || this.discovered.has(id)) continue;
+      this.discovered.add(id);
+      this.onDiscover?.(landmark, true);
+    }
+  }
+
+  /** Forgets every discovery; places near the player are recorded again at once. */
+  reset(): void {
+    this.discovered.clear();
   }
 
   /** Opens the panel for a landmark by name (used by world-label clicks). */

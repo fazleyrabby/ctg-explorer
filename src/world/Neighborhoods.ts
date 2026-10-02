@@ -1,5 +1,6 @@
 import {inRailway} from "@/geography/RailwayLayout";
 import {inLaldighi} from "@/geography/PondLayout";
+import {inShopRows} from "@/geography/ShopRowLayout";
 import {solidBox} from '@/world/SolidFootprints';
 import type {CollisionBox} from '@/world/Colliders';
 import {inPortDistrict} from '@/geography/PortLayout';
@@ -34,7 +35,7 @@ export class Neighborhoods {
     const occupied=existing.map(b=>({minX:Math.min(...b.ring.map(p=>p[0]))-5,maxX:Math.max(...b.ring.map(p=>p[0]))+5,minZ:Math.min(...b.ring.map(p=>p[1]))-5,maxZ:Math.max(...b.ring.map(p=>p[1]))+5}));
     const bounds=localWorldBounds();
     const roadClear=(x:number,z:number,r:number)=>!roads.some(road=>road.points.slice(1).some((p,i)=>segmentDistance(x,z,road.points[i]!,p)<road.width/2+r));
-    const clear=(x:number,z:number,r:number)=>!inRailway(x,z,r)&&!inLaldighi(x,z,r)&&!inPortDistrict(x,z,r)&&!inProminentDistrict(x,z,r+6)&&!inAirportDistrict(x,z,r+6)&&x>bounds.minX+r&&x<bounds.maxX-r&&z>bounds.minZ+r&&z<bounds.maxZ-r&&shoreDistance(x,z)>r+5&&roadClear(x,z,r+3)&&!occupied.some(b=>x+r>b.minX&&x-r<b.maxX&&z+r>b.minZ&&z-r<b.maxZ)&&!this.buildings.some(b=>Math.hypot(x-b.x,z-b.z)<r+b.radius+5);
+    const clear=(x:number,z:number,r:number)=>!inRailway(x,z,r)&&!inLaldighi(x,z,r)&&!inShopRows(x,z,r+2)&&!inPortDistrict(x,z,r)&&!inProminentDistrict(x,z,r+6)&&!inAirportDistrict(x,z,r+6)&&x>bounds.minX+r&&x<bounds.maxX-r&&z>bounds.minZ+r&&z<bounds.maxZ-r&&shoreDistance(x,z)>r+5&&roadClear(x,z,r+3)&&!occupied.some(b=>x+r>b.minX&&x-r<b.maxX&&z+r>b.minZ&&z-r<b.maxZ)&&!this.buildings.some(b=>Math.hypot(x-b.x,z-b.z)<r+b.radius+5);
     const palette=[0xffe3a6,0xf4a185,0x71c7ba,0xc3b6dc,0x8dcde3];
     let index=0;
     for(const path of buildPaths(roads,65))for(let d=22;d<path.total;d+=34)for(const side of [-1,1]){

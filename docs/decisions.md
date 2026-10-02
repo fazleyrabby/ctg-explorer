@@ -557,3 +557,24 @@ The owner explicitly confirmed that this should not be a one-to-one OSM or Googl
 ## ADR-0027 — Rounded island presentation, flat city geometry
 
 The owner approved a rounded island-like outline instead of a spherical world. Keep the existing coordinate projection and playable bounds. A shared signed shoreline rounds the outer corners and adds subtle coves; terrain, water shading, movement and scenery clearance use the same function. Remove the box-shaped terrain skirt. Extend decorative ocean beyond the walkable area and fade it to the current sky color at the horizon. Reframe the orbit camera to fit the island. Roads, flyovers, tracks and landmark coordinates are unchanged; edge infill is omitted where the new shore needs clearance. This decorative island outline is not a claim that Chattogram is geographically an island.
+
+
+## ADR-0028 — Reserve old-town shop-row parcels before infill
+
+Following ADR-0025, `planShopRows` runs after the pond and railway are placed and before any scenery. It walks ordinary streets (not the wide corridors) nearest each of three anchors — Chawkbazar, Anderkilla, Khatunganj — and reserves up to eight oriented parcels per district: the attached run, a paved frontage up to the road edge and an optional tea-stall bay. Parcels must clear every carriageway, flyover deck, mapped footprint, reserved landmark and each other. Neighborhood infill, block infill, roadside stalls, palms, street trees and prominent-place parts all skip reserved parcels, so rows replace generic blocks instead of overlapping them. All rows merge into one vertex-coloured mesh; window colours reuse the shared night-emission mask. The Anderkilla anchor (22.34045, 91.83655) is an approximate point beside the mapped mosque, not a surveyed market boundary.
+
+## ADR-0029 — Progress in localStorage; quests derive from discoveries
+
+One versioned JSON record stores discovered landmark ids, the selected route and the quality preset. Quest progress is not stored: each route counts its stops against the shared discovery set, so adding or reordering routes cannot corrupt a save. All storage access is guarded; the game runs unsaved when storage is unavailable. Reset clears discoveries and the route but keeps the display preset.
+
+## ADR-0030 — Digital touch joystick and pinch zoom
+
+Touch devices get an on-screen joystick and action buttons that write to the same `Input` state as the keyboard. Joystick output is quantised to the keyboard's eight directions so the controller's held-direction logic (which keeps a walking line stable while the follow camera turns) behaves identically; the outer rim sprints. Canvas pointers are tracked by id, so the joystick finger never steers the camera, and two canvas pointers pinch-zoom through the existing wheel path. Analog walking speed was not added.
+
+## ADR-0031 — Quality presets without measured auto-tuning
+
+Three presets change only inexpensive, reversible settings: pixel-ratio cap, sun shadow-map size (or off) and the visible fraction of ambient pedestrians and traffic. Touch devices default to Medium. No frame-time auto-tuning is done because no device measurements exist yet; the HUD shows live FPS so the visitor can choose.
+
+## ADR-0032 — Vehicles and outline collision for mapped buildings
+
+Vehicles reuse the on-foot collision grid with a larger radius and lose speed in proportion to how much of a step the wall absorbed. With bounding boxes, 99 of 4,073 road-centreline samples were inside a mapped building's box at car radius although only one touched the real outline, so mapped footprints now push out along their polygon edges; a regression check requires every road centreline to stay drivable. Authored and procedural solids remain boxes, and camera occlusion still uses boxes for all buildings.

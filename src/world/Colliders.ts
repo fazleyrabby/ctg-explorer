@@ -7,6 +7,11 @@ export interface CollisionBox {
   minX: number; maxX: number;
   minZ: number; maxZ: number;
   bottom: number; top: number;
+  /**
+   * Mapped footprint outline. When present, push-out follows the real walls,
+   * so a rotated building's bounding box no longer blocks the street beside it.
+   */
+  ring?: Array<[number, number]>;
 }
 
 const CELL = 20;
@@ -37,7 +42,7 @@ export class Colliders {
         const g = getHeight(x, z);
         if (g < bottom) bottom = g;
       }
-      const box: CollisionBox = { minX, maxX, minZ, maxZ, bottom, top: Math.max(...building.ring.map(([x,z])=>getHeight(x,z))) + building.height };
+      const box: CollisionBox = { minX, maxX, minZ, maxZ, bottom, top: Math.max(...building.ring.map(([x,z])=>getHeight(x,z))) + building.height, ring: building.ring };
       this.insert(box);
       this.count++;
     }
@@ -79,6 +84,11 @@ export class Colliders {
   resolve(position: THREE.Vector3, radius: number): void {
     for(let pass=0;pass<3;pass++)this.eachNear(position.x, position.z, radius + CELL, (b) => {
       if (position.y >= b.top-.02 || position.y+1.7 < b.bottom) return;
+      if (b.ring) {
+        if (position.x < b.minX - radius || position.x > b.maxX + radius || position.z < b.minZ - radius || position.z > b.maxZ + radius) return;
+        pushOutOfRing(position, radius, b.ring);
+        return;
+      }
       const nx = Math.max(b.minX, Math.min(position.x, b.maxX));
       const nz = Math.max(b.minZ, Math.min(position.z, b.maxZ));
       const dx = position.x - nx, dz = position.z - nz;
@@ -117,6 +127,27 @@ export class Colliders {
     }
     return nearest;
   }
+}
+
+/** Moves a circle out of a footprint polygon along its nearest wall. */
+function pushOutOfRing(position: THREE.Vector3, radius: number, ring: Array<[number, number]>): void {
+  const x = position.x, z = position.z;
+  let best = Infinity, nearX = x, nearZ = z, inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const a = ring[i]!, b = ring[j]!;
+    const ex = b[0] - a[0], ez = b[1] - a[1];
+    const t = Math.max(0, Math.min(1, ((x - a[0]) * ex + (z - a[1]) * ez) / (ex * ex + ez * ez || 1)));
+    const px = a[0] + ex * t, pz = a[1] + ez * t;
+    const d = Math.hypot(x - px, z - pz);
+    if (d < best) { best = d; nearX = px; nearZ = pz; }
+    if ((a[1] > z) !== (b[1] > z) && x < (ex * (z - a[1])) / ez + a[0]) inside = !inside;
+  }
+  if (!inside && best >= radius) return;
+  if (best < 1e-6) return;
+  // From outside, back away from the wall; from inside, leave through it.
+  const sign = inside ? -1 : 1;
+  position.x = nearX + ((x - nearX) / best) * radius * sign;
+  position.z = nearZ + ((z - nearZ) / best) * radius * sign;
 }
 
 /** Slab test; returns entry distance in [0,maxDist] or -1. */

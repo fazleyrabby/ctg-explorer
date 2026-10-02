@@ -1,5 +1,6 @@
 import {inRailway} from "@/geography/RailwayLayout";
 import {inLaldighi} from "@/geography/PondLayout";
+import {inShopRows} from "@/geography/ShopRowLayout";
 import {segmentDistance} from "@/geography/CityGeography";
 import * as THREE from "three";
 import type { HeightProvider } from "@/geography/WorldHeight";
@@ -73,7 +74,8 @@ export class StreetProps {
             if (poles.length % TREE_EVERY === 0) {
               const tx = a[0] + dirX * t + nX * (offset + TREE_OFFSET);
               const tz = a[1] + dirZ * t + nZ * (offset + TREE_OFFSET);
-              trees.push({ x: tx, z: tz, y: getHeight(tx, tz), angle: poles.length * 0.7 });
+              // Old-town shop fronts keep their awnings and doors clear of trunks.
+              if (!inShopRows(tx, tz, 1.5)) trees.push({ x: tx, z: tz, y: getHeight(tx, tz), angle: poles.length * 0.7 });
             }
           }
         }

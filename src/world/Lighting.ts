@@ -9,7 +9,8 @@ export class Lighting {
   readonly sun: THREE.DirectionalLight;
   readonly hemisphere: THREE.HemisphereLight;
   /** World size of one shadow-map texel; used to snap the sun and avoid shimmer. */
-  readonly shadowTexel: number;
+  shadowTexel: number;
+  private shadowsEnabled = true;
 
   constructor(sceneSize = 2400) {
     this.object = new THREE.Group();
@@ -44,6 +45,22 @@ export class Lighting {
     this.object.add(sun.target);
   }
 
+  /** Sets the sun shadow-map resolution; 0 turns sun shadows off (quality presets). */
+  setShadowQuality(mapSize: number): void {
+    this.shadowsEnabled = mapSize > 0;
+    if (!this.shadowsEnabled) {
+      this.sun.castShadow = false;
+      return;
+    }
+    if (this.sun.shadow.mapSize.x === mapSize) return;
+    this.sun.shadow.mapSize.set(mapSize, mapSize);
+    // The renderer allocates a new target at the new size on the next frame.
+    this.sun.shadow.map?.dispose();
+    this.sun.shadow.map = null;
+    const cam = this.sun.shadow.camera as THREE.OrthographicCamera;
+    this.shadowTexel = (cam.right - cam.left) / mapSize;
+  }
+
   /** Applies time-of-day lighting values (spec §34). */
   applyTimeOfDay(
     color: THREE.Color,
@@ -55,7 +72,7 @@ export class Lighting {
     this.sun.intensity = intensity;
     // A near-horizontal sun produces extreme shadow acne; only cast shadows
     // while the key light is reasonably high.
-    this.sun.castShadow = castShadow;
+    this.sun.castShadow = castShadow && this.shadowsEnabled;
     this.hemisphere.intensity = ambientIntensity;
   }
 }

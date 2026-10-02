@@ -33,8 +33,13 @@ minimap marker followed.
 
 ![notebook](../images/notebook.png)
 
+## Update 2026-10-02
+
+- `QUESTS` in `src/quests/quest.ts` holds four routes; the HUD tracker has a picker.
+- Progress is derived from the shared discovery set, so a visit counts for every route containing that place and switching routes loses nothing.
+- `src/core/SaveGame.ts` persists discoveries, the chosen route and the quality preset in `localStorage`; the notebook's **Reset progress** clears discoveries and the route.
+
 ## Not yet
 
-- Multiple quests / a quest picker.
 - Story-first content per stop (curated "History / Visit / Sources" tabs).
 - Memory questions, stamps, rewards (the notebook is currently a log).

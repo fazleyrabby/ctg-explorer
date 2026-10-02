@@ -128,6 +128,8 @@ export class PostFX {
   }
 
   setSize(width: number, height: number): void {
+    // Follow the renderer's pixel ratio so a quality change reaches the effect buffers.
+    this.composer.setPixelRatio(this.renderer.getPixelRatio());
     this.composer.setSize(width, height);
   }
 

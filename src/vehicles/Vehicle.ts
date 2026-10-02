@@ -3,6 +3,7 @@ import type { HeightProvider } from "@/geography/WorldHeight";
 import { shoreDistance } from "@/geography/CityGeography";
 import { richVehicle } from "@/world/RichVehicles";
 import { clampToWorld } from "@/geography/Projection";
+import type { Colliders } from "@/world/Colliders";
 
 export type VehicleKind = "car" | "bicycle";
 export type DriveConstraint = (fromX:number,fromZ:number,fromY:number,toX:number,toZ:number,radius:number)=>[number,number];
@@ -42,6 +43,7 @@ export class Vehicle {
 
   private readonly wheels: THREE.Group[] = [];
   private position = new THREE.Vector3();
+  private readonly probe = new THREE.Vector3();
 
   constructor(kind: VehicleKind) {
     this.kind = kind;
@@ -60,10 +62,13 @@ export class Vehicle {
   }
 
   /** Places the vehicle on the ground just in front of a point. */
-  place(x: number, z: number, heading: number, getHeight: HeightProvider, y = 0): void {
+  place(x: number, z: number, heading: number, getHeight: HeightProvider, y = 0, colliders?: Colliders): void {
     this.heading = heading;
     this.speed = 0;
-    this.position.set(x, getHeight(x, z, y), z);
+    this.position.set(x, y, z);
+    // Never summon a vehicle inside a wall.
+    colliders?.resolve(this.position, this.kind === "car" ? 1.25 : 0.5);
+    this.position.y = getHeight(this.position.x, this.position.z, y);
     this.object.visible = true;
     this.sync();
   }
@@ -75,6 +80,7 @@ export class Vehicle {
     handbrake: boolean,
     getHeight: HeightProvider,
     constrainDrive?: DriveConstraint,
+    colliders?: Colliders,
   ): void {
     const spec = this.spec;
 
@@ -108,6 +114,20 @@ export class Vehicle {
     if(constrainDrive){
       [nextX,nextZ]=constrainDrive(this.position.x,this.position.z,this.position.y,nextX,nextZ,this.kind==="car"?.95:.4);
       if(Math.hypot(nextX-this.position.x,nextZ-this.position.z)<Math.hypot(dx,dz)*.25)this.speed*=.35;
+    }
+    if (colliders) {
+      // Slide along building walls; a head-on hit sheds most of the speed.
+      const radius = this.kind === "car" ? 1.25 : 0.5;
+      this.probe.set(nextX, this.position.y, nextZ);
+      colliders.resolve(this.probe, radius);
+      const pushed = Math.hypot(this.probe.x - nextX, this.probe.z - nextZ);
+      if (pushed > 1e-4) {
+        nextX = this.probe.x;
+        nextZ = this.probe.z;
+        const travelled = Math.hypot(nextX - this.position.x, nextZ - this.position.z);
+        const blocked = 1 - Math.min(1, travelled / Math.max(1e-6, Math.hypot(dx, dz)));
+        this.speed *= 1 - 0.85 * blocked;
+      }
     }
     const support = getHeight(nextX, nextZ, this.position.y);
     // Bridges carry the vehicle over water the ground would otherwise block.
