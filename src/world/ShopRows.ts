@@ -57,7 +57,8 @@ export class ShopRows {
       const solid=(lx:number,lz:number,w:number,d:number,h:number)=>{const [x,z]=rowToWorld(row,lx,lz);this.solids.push(solidBox(x,z,w,d,y,h,row.yaw));};
 
       // Paved frontage ties the run together and reads as a footpath.
-      box(row.length+1.2,.14,SHOP_FRONTAGE,0xeadcb9,0,.07,front+SHOP_FRONTAGE/2);
+      // It stops short of the kerb: overlapping the road ribbon at nearly the same height flickers.
+      box(row.length+1.2,.14,SHOP_FRONTAGE-.6,0xeadcb9,0,.07,front+(SHOP_FRONTAGE-.6)/2);
 
       for(const unit of row.units){
         const v=unit.variant,w=unit.width,h=GROUND_FLOOR+(unit.floors-1)*FLOOR,x=unit.offset;
@@ -65,18 +66,19 @@ export class ShopRows {
         this.unitCount++;
         solid(x,0,w,row.depth,h);
         box(w,h,row.depth,wall,x,h/2,0);
-        // Party-wall piers separate neighbours without leaving a gap.
-        for(const edge of [-1,1])box(.3,h+.25,row.depth+.2,TRIM,x+edge*(w/2-.15),(h+.25)/2,0);
+        // Party-wall piers separate neighbours without leaving a gap. They stand
+        // proud of the side wall; a face coplanar with it would z-fight.
+        for(const edge of [-1,1])box(.3,h+.25,row.depth+.2,TRIM,x+edge*(w/2-.1),(h+.25)/2,0);
 
         // Ground floor: roller shutter or open bay, sign band and deep awning.
         const open=v%3!==0;
         box(w-1.3,2.5,.16,open?0x2c3f45:SHUTTERS[v%SHUTTERS.length]!,x,1.3,front+.06);
         if(open){box(w-1.9,.9,.7,0xc08a57,x,.5,front-.55);box(w-2.4,.45,.5,ACCENTS[(v+2)%ACCENTS.length]!,x,1.15,front-.55);}
-        else for(let s=0;s<4;s++)box(w-1.3,.05,.2,TRIM,x,.55+s*.6,front+.08);
+        else for(let s=0;s<4;s++)box(w-1.3,.05,.3,TRIM,x,.55+s*.6,front+.08);
         box(w-.7,.6,.14,accent,x,GROUND_FLOOR-.38,front+.1);
-        box(w*.5,.2,.16,TRIM,x,GROUND_FLOOR-.38,front+.13);
+        box(w*.5,.2,.3,TRIM,x,GROUND_FLOOR-.38,front+.13);
         box(w-.5,.1,2.3,accent,x,2.72,front+1.12,.22);
-        for(let stripe=-1;stripe<=1;stripe++)box((w-.5)*.16,.12,2.3,TRIM,x+stripe*(w-.5)*.32,2.725,front+1.12,.22);
+        for(let stripe=-1;stripe<=1;stripe++)box((w-.5)*.16,.26,2.34,TRIM,x+stripe*(w-.5)*.32,2.72,front+1.12,.22);
 
         // Upper floors: shuttered windows in front, plain openings behind.
         for(let f=1;f<unit.floors;f++){
@@ -101,7 +103,7 @@ export class ShopRows {
           box(w*.5+.4,.18,row.depth*.4+.4,ROOFS[1-v%2]!,x-w*.12,h+2.12,-row.depth*.18);
         } else {
           // Parapet roof with a water tank on a short stand.
-          box(w,.7,.25,TRIM,x,h+.35,front-.12);box(w,.7,.25,TRIM,x,h+.35,-front+.12);
+          box(w,.7,.25,TRIM,x,h+.36,front-.12);box(w,.7,.25,TRIM,x,h+.36,-front+.12);
           box(1.5,.7,1.5,0x9aa3a8,x+w*.16,h+.35,-1.6);
           add(new THREE.CylinderGeometry(.75,.75,1.3,10),v%2?0x23282d:0x2b62a3,x+w*.16,h+1.35,-1.6);
           if(roof===3){add(new THREE.CylinderGeometry(.04,.04,2.6,5),0x6f7a80,x-w*.28,h+1.3,1.2);box(.9,.05,.05,0x6f7a80,x-w*.28,h+2.3,1.2);}

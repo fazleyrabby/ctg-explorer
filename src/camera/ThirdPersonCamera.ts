@@ -34,7 +34,9 @@ export class ThirdPersonCamera {
   get manualOrbitRevision(): number { return this.orbitRevision; }
 
   constructor(aspect: number, private readonly rotateSpeed = 0.005) {
-    this.camera = new THREE.PerspectiveCamera(60, aspect, 0.1, 12000);
+    // A 0.1 near plane left too little depth precision for facade details a few
+    // centimetres proud of their wall; they flickered as the camera moved.
+    this.camera = new THREE.PerspectiveCamera(60, aspect, 0.3, 12000);
   }
 
   handleInput(input: Input): void {
